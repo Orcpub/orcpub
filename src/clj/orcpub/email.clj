@@ -4,6 +4,11 @@
             [environ.core :as environ]
             [orcpub.route-map :as routes]))
 
+(defn get-http-protocol [] ()
+  if ( = true (environ/env :ssl-enabled))
+  (str "https://")
+  (str "http://"))
+
 (defn verification-email-html [first-and-last-name username verification-url]
   [:div
    (str "Dear OrcPub Patron,")
@@ -38,7 +43,7 @@
                         :body (verification-email
                                first-and-last-name
                                username
-                               (str (environ/env :server-protocol) (environ/env :server-domain) "/" (routes/path-for routes/verify-route) "?key=" verification-key))}))
+                               (str (get-http-protocol) (environ/env :server-domain) "/" (routes/path-for routes/verify-route) "?key=" verification-key))}))
 
 (defn reset-password-email-html [first-and-last-name reset-url]
   [:div
@@ -70,10 +75,10 @@
                         :subject "OrcPub Password Reset"
                         :body (reset-password-email
                                first-and-last-name
-                               (str (environ/env :server-protocol) (environ/env :server-domain) "/" (routes/path-for routes/reset-password-page-route) "?key=" reset-key))}))
+                               (str (get-http-protocol) (environ/env :server-domain) "/" (routes/path-for routes/reset-password-page-route) "?key=" reset-key))}))
 
 (defn send-error-email [context exception]
-  (if (= (environ/env :server-protocol) 1)
+  (if ( = true (environ/env :email-errors-enabled))
     (postal/send-message (email-cfg
                            {:from "OrcPub Errors <no-reply@"(environ/env :server-domain)">"
                             :to (str (environ/env :email-errors-to))
@@ -83,3 +88,4 @@
                                        (do (clojure.pprint/pprint (:request context) writer))
                                        (clojure.pprint/pprint (or (ex-data exception) exception) writer)
                                        (str writer))}))))
+
