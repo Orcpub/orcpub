@@ -30,15 +30,15 @@
    :host (environ/env :email-server-url)
    :port (Integer/parseInt (environ/env :email-server-port))})
 
-(defn send-verification-email [base-url {:keys [email username first-and-last-name]} verification-key]
+(defn send-verification-email [{:keys [email username first-and-last-name]} verification-key]
   (postal/send-message (email-cfg)
-                       {:from "OrcPub Team <no-reply@orcpub.com>"
+                       {:from "OrcPub Team <no-reply@"(environ/env :server-domain)">"
                         :to email
                         :subject "OrcPub Email Verification"
                         :body (verification-email
                                first-and-last-name
                                username
-                               (str base-url (routes/path-for routes/verify-route) "?key=" verification-key))}))
+                               (str (environ/env :server-protocol) (environ/env :server-domain) "/" (routes/path-for routes/verify-route) "?key=" verification-key))}))
 
 (defn reset-password-email-html [first-and-last-name reset-url]
   [:div
@@ -65,20 +65,21 @@
 
 (defn send-reset-email [base-url {:keys [email username first-and-last-name]} reset-key]
   (postal/send-message (email-cfg)
-                       {:from "OrcPub Team <no-reply@orcpub.com>"
+                       {:from "OrcPub Team <no-reply@"(environ/env :server-domain)">"
                         :to email
                         :subject "OrcPub Password Reset"
                         :body (reset-password-email
                                first-and-last-name
-                               (str base-url (routes/path-for routes/reset-password-page-route) "?key=" reset-key))}))
+                               (str (environ/env :server-protocol) (environ/env :server-domain) "/" (routes/path-for routes/reset-password-page-route) "?key=" reset-key))}))
 
 (defn send-error-email [context exception]
-  (postal/send-message (email-cfg)
-                       {:from "OrcPub Errors <no-reply@orcpub.com>"
-                        :to "redorc@orcpub.com"
-                        :subject "Exception"
-                        :body [{:type "text/plain"
-                                :content (let [writer (java.io.StringWriter.)]
-                                           (do (clojure.pprint/pprint (:request context) writer)
-                                               (clojure.pprint/pprint (or (ex-data exception) exception) writer)
-                                               (str writer)))}]}))
+  (if (= (environ/env :server-protocol) 1)
+    (postal/send-message (email-cfg)
+      {:from "OrcPub Errors <no-reply@"(environ/env :server-domain)">"
+       :to (str (environ/env :email-errors-to))
+       :subject "Exception"
+       :body [{:type "text/plain"}]
+       :content (let [writer (java.io.StringWriter.)])
+       (do (clojure.pprint/pprint (:request context) writer))
+       (clojure.pprint/pprint (or (ex-data exception) exception) writer)
+       (str writer)})))
