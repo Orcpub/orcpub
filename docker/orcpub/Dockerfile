@@ -8,6 +8,7 @@ RUN lein deps
 
 ADD ./ /orcpub
 RUN printenv &&\
+	lein clean &&\
 	lein uberjar
 
 FROM openjdk:8-jre-alpine as runner
