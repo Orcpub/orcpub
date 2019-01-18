@@ -1,5 +1,6 @@
 (ns orcpub.pdf
   (:require [clojure.string :as s]
+            [clojure.stacktrace]
             [orcpub.common :as common]
             [orcpub.dnd.e5.display :as dis5e]
             [orcpub.dnd.e5.monsters :as monsters]
