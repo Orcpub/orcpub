@@ -274,7 +274,7 @@
     [:animal-messenger :blindness-deafness :calm-emotions
      #_:cloud-of-daggers #_:crown-of-madness :detect-thoughts :enhance-ability :enthrall :heat-metal
      :hold-person :invisibility :knock :lesser-restoration
-     :locate-animals-or-plants :locate-object :magic-mouth :phantasmal-force
+     :locate-animals-or-plants :locate-object :magic-mouth #_:phantasmal-force
      :see-invisibility :shatter :silence :suggestion :zone-of-truth],
     3
     [:bestow-curse :clairvoyance :dispel-magic :fear #_:feign-death :glyph-of-warding
@@ -412,10 +412,10 @@
     5 [:commune-with-nature #_:conjure-volley #_:swift-quiver :tree-stride]},
    :sorcerer
    {0
-    [:acid-splash #_:blade-ward :booming-blade :chill-touch :dancing-lights :fire-bolt
-     #_:friends :green-flame-blade :light :mage-hand
+    [:acid-splash #_:blade-ward #_:booming-blade :chill-touch :dancing-lights :fire-bolt
+     #_:friends #_:green-flame-blade :light :mage-hand
      :mending :message :minor-illusion :poison-spray :prestidigitation :ray-of-frost
-     :shocking-grasp :sword-burst :true-strike],
+     :shocking-grasp #_:sword-burst :true-strike],
     1
     [:burning-hands :charm-person #_:chromatic-orb :color-spray :comprehend-languages
      :detect-magic :disguise-self :expeditious-retreat :false-life
@@ -426,7 +426,7 @@
     [:alter-self :blindness-deafness :blur #_:cloud-of-daggers :darkness :darkvision
      :detect-thoughts :enhance-ability :enlarge-reduce :gust-of-wind
      :hold-person :invisibility :knock :levitate :mirror-image
-     :misty-step :phantasmal-force :scorching-ray :see-invisibility :shatter :spider-climb
+     :misty-step #_:phantasmal-force :scorching-ray :see-invisibility :shatter :spider-climb
      :suggestion :web],
     3
     [:blink :clairvoyance #_:counterspell :daylight :dispel-magic :fear :fireball :fly
@@ -458,7 +458,7 @@
    {0
     [#_:blade-ward :chill-touch :eldritch-blast #_:friends :mage-hand :minor-illusion :prestidigitation
      :true-strike :poison-spray
-     :booming-blade :sword-burst],
+     #_:booming-blade #_:sword-burst],
     1
     [#_:armor-of-agathys #_:arms-of-hadar :charm-person :comprehend-languages :expeditious-retreat
      :hellish-rebuke #_:hex
@@ -487,7 +487,7 @@
     [:acid-splash #_:blade-ward :chill-touch :dancing-lights :fire-bolt #_:friends :light :mage-hand
      :mending :message :minor-illusion :poison-spray :prestidigitation :ray-of-frost
      :shocking-grasp :true-strike
-     :booming-blade :green-flame-blade :sword-burst],
+     #_:booming-blade #_:green-flame-blade #_:sword-burst],
     1
     [:alarm :burning-hands :charm-person #_:chromatic-orb :color-spray
      :comprehend-languages :detect-magic :disguise-self
@@ -503,7 +503,7 @@
      :detect-thoughts :enlarge-reduce :flaming-sphere :gentle-repose
      :gust-of-wind :hold-person :invisibility :knock :levitate
      :locate-object :magic-mouth :magic-weapon :melfs-acid-arrow :mirror-image :misty-step
-     :nystuls-magic-aura :phantasmal-force :ray-of-enfeeblement :rope-trick :scorching-ray :see-invisibility
+     :nystuls-magic-aura #_:phantasmal-force :ray-of-enfeeblement :rope-trick :scorching-ray :see-invisibility
      :shatter :spider-climb :suggestion :web],
     3
     [:animate-dead :bestow-curse :blink :clairvoyance #_:counterspell :dispel-magic
