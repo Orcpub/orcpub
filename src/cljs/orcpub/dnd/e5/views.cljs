@@ -901,8 +901,9 @@
                          :text-shadow "1px 2px 1px rgba(0,0,0,0.37)"
                          :margin-top "20px"}}
            "LOGIN"]
-          [:div.m-t-10
-           [facebook-login-button]]
+          ;; Rem'd out facebook login button, it is not enabled by default in the app.  Needs to be configured first.
+		  ;;[:div.m-t-10
+           ;;[facebook-login-button]]
           [:div
            {:style {:margin-top "50px"}}
            [form-input {:title "Username or Email"
