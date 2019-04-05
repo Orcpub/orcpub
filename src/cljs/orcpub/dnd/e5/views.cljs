@@ -5262,8 +5262,14 @@
         :option-pack
         class
         "m-l-5 m-b-20"]]]
+     [:div.m-b-20
+      [:div.f-w-b
+       "Description"]
+      [textarea-field
+       {:value (get class :help)
+        :on-change #(dispatch [::classes/set-class-prop :help %])}]]
      [:div.m-b-20.flex.flex-wrap
-      [:div.m-l-5.m-b-20.flex-grow-1
+      [:div.m-l-5.flex-grow-1
        [labeled-dropdown
         "Hit Die"
         {:items (map
@@ -5273,7 +5279,7 @@
                  [6 8 10 12])
          :value (:hit-die class)
          :on-change #(dispatch [::classes/set-class-prop :hit-die (js/parseInt %)])}]]
-      [:div.m-l-5.m-b-20.flex-grow-1
+      [:div.m-l-5.flex-grow-1
        [labeled-dropdown
         "Pick Subclass at Level"
         {:items (map
@@ -5283,12 +5289,23 @@
                  (range 1 4))
          :value (:subclass-level class)
          :on-change #(dispatch [::classes/set-class-prop :subclass-level (js/parseInt %)])}]]
-      [:div.m-b-20.flex-grow-1
+      [:div.flex-grow-1
        [class-input-field
         "Subclass Title"
         :subclass-title
         class
-        "m-l-5 m-b-20"]]]
+        "m-l-5"]]]
+     #_[:div.m-b-20
+      [:div.f-w-b
+       "Subclass Flavor"]
+      [textarea-field
+       {:value (get class :subclass-help)
+        :on-change #(dispatch [::classes/set-class-prop :subclass-help %])}]]
+     [:div.m-b-20
+      [class-input-field
+       "Subclass Flavor"
+       :subclass-help
+       class]]
      [:div.m-b-30
       [:div.f-s-24.f-w-b.m-b-10 "Saving Throws"]
       [:div.flex.flex-wrap
@@ -5791,11 +5808,11 @@
        race
        "m-l-5 m-b-20"]]
      [:div.m-b-20
-       [:div.f-w-b
-        "Description"]
-       [textarea-field
-        {:value (get race :help)
-         :on-change #(dispatch [::races/set-race-prop :help %])}]]
+      [:div.f-w-b
+       "Description"]
+      [textarea-field
+       {:value (get race :help)
+        :on-change #(dispatch [::races/set-race-prop :help %])}]]
      [:div.m-b-20.flex.flex-wrap
       [:div.m-r-5
        [labeled-dropdown
@@ -5932,11 +5949,11 @@
        background
        "m-l-5 m-b-20"]]
      [:div.m-b-20
-       [:div.f-w-b
-        "Description"]
-       [textarea-field
-        {:value (get background :help)
-         :on-change #(dispatch [::bg/set-background-prop :help %])}]]
+      [:div.f-w-b
+       "Description"]
+      [textarea-field
+       {:value (get background :help)
+        :on-change #(dispatch [::bg/set-background-prop :help %])}]]
      [:div [background-skill-proficiencies background]]
      [:div [background-languages background]]
      [:div [background-tool-proficiencies background]]
