@@ -7086,7 +7086,7 @@
   [my-content-type
    name
    plugin
-   "eldritch invocations"
+   "eldritch invocation"
    ::e5/invocations
    "warlock-eye"
    ::classes/new-invocation
