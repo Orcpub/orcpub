@@ -1,0 +1,30 @@
+**Thanks to the following for supporting the development of Orcpub2 the community edition!**
+- Brett the Wiese	Ancient DM
+- Asher Finkel	Egging DM
+- Brandi Couch	Egging DM
+- Brandon Kinard	Egging DM
+- Coral Baisch	Egging DM
+- durza	Egging DM
+- Jader7777	Egging DM
+- Jarod	Egging DM
+- Jon Doe	Egging DM
+- Karlos Martins	Egging DM
+- kevin mcsharry	Egging DM
+- Leo Blondel	Egging DM
+- Leo Herzog	Egging DM
+- Maximilian Wipplinger	Egging DM
+- Nope.	Egging DM
+- Piccadilly Pineapple	Egging DM
+- Rand	Egging DM
+- Simone Spinozzi	Egging DM
+- Stephane Bourque	Egging DM
+- Travis Smith	Egging DM
+- Carl Eranio	Wyrmling DM
+- Jeff Ginger	Wyrmling DM
+- John T Hoey	Wyrmling DM
+- Kyle	Wyrmling DM
+- Martin Perron	Wyrmling DM
+- Mike Brummett	Wyrmling DM
+- River Michael	Wyrmling DM
+- Tricia Thomas	Wyrmling DM
+- Walker Richardson	Wyrmling DM
