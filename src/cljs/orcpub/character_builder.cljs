@@ -476,7 +476,8 @@
        {:class-name (s/join " " (conj
                                  (remove nil? [(if selected? "b-w-5")
                                                (if selectable? "pointer hover-shadow")
-                                               (if (not selectable?) "opacity-5 display-none")])
+                                               (if (and (= (nth option-path 2) :eldritch-invocations) (not selectable?)) "display-none" )
+                                               (if (not selectable?) "opacity-5")])
                                  classes))
         :on-click select-fn}
        [:div.flex.align-items-c
