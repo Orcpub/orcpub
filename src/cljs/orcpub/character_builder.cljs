@@ -476,7 +476,7 @@
        {:class-name (s/join " " (conj
                                  (remove nil? [(if selected? "b-w-5")
                                                (if selectable? "pointer hover-shadow")
-                                               (if (and (= (nth option-path 2) :eldritch-invocations) (not selectable?)) "display-none" ) ;Robs=> Applying display:none to non-selectable Eldritch Invocations
+                                               (if (and (= (nth option-path 2) :eldritch-invocations) (not selectable?)) "hidden" ) ;Robs=> Applying display:none to non-selectable Eldritch Invocations in the Character Builder
                                                (if (not selectable?) "opacity-5")])
                                  classes))
         :on-click select-fn}
