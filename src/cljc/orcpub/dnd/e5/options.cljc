@@ -3091,7 +3091,7 @@
 
 (defn magic-initiate-selection [spells-map spell-lists]
   (t/selection-cfg
-   {:name "Spell Class
+   {:name "Spell Class"
     :order 0
     :tags #{:spells}
     :options [(magic-initiate-option spells-map :bard "Bard" ::character/cha spell-lists)
