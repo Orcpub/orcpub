@@ -1652,7 +1652,8 @@
         :description "While you are wearing armor, you gain a +1 bonus to AC."})]})
    (t/option-cfg
     {:name "Dueling"
-     :modifiers [(modifiers/trait-cfg
+     :modifiers [(modifiers/magical-damage-bonus 2)
+      (modifiers/trait-cfg
        {:name "Dueling Fighting Style"
         :page 72
         :description "When you are wielding a melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon."})]})
