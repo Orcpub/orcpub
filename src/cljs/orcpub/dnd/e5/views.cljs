@@ -6982,15 +6982,23 @@
 (defn import-file [e]
   (let [reader (js/FileReader.)
         file (.. e -target -files (item 0))
-        filename (.-name file)
-        nm (first (s/split filename #".orcbrew"))]
-    (.addEventListener
-     reader
-     "load"
-     (fn [e]
-       (let [text (.. e -target -result)]
-         (dispatch [::e5/import-plugin nm text]))))
-    (.readAsText reader file)))
+        filename (.-name file)]
+        (if (s/includes? filename ".orcbrew") (let [nm (first (s/split filename (or #".orcbrew")))]
+                                         (.addEventListener
+                                                reader
+                                                "load"
+                                                 (fn [e]
+                                                   (let [text (.. e -target -result)]
+                                                    (dispatch [::e5/import-plugin nm text]))))
+                                               (.readAsText reader file))
+                                              (let [nm (first (s/split filename (or #".dmvbrew")))]
+                                               (.addEventListener
+                                                reader
+                                                "load"
+                                                 (fn [e]
+                                                   (let [text (.. e -target -result)]
+                                                    (dispatch [::e5/import-plugin nm text]))))
+                                               (.readAsText reader file)))))
 
 (defn capitalize-words
   [s]
@@ -7253,7 +7261,7 @@
     [:div.p-20.bg-lighter.main-text-color.m-b-10.m-l-10.m-r-10.b-rad-5
      [:div.f-w-b.f-s-24.m-b-5 "Import Option Source"]
      [:input {:type "file"
-              :accept ".orcbrew"
+              :accept [".orcbrew", ".dmvbrew"]
               :on-change import-file}]]
     [my-content]]])
 

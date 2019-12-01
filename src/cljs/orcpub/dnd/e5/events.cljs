@@ -3127,7 +3127,7 @@
    (let [blob (js/Blob.
                (clj->js [(str plugin)])
                (clj->js {:type "text/plain;charset=utf-8"}))]
-     (js/saveAs blob (str name ".orcbrew"))
+     (js/saveAs blob (str name ".dmvbrew"))
      {})))
 
 (reg-event-fx
@@ -3136,7 +3136,7 @@
    (let [blob (js/Blob.
                (clj->js [(str @(subscribe [::e5/plugins]))])
                (clj->js {:type "text/plain;charset=utf-8"}))]
-     (js/saveAs blob (str "all-content.orcbrew"))
+     (js/saveAs blob (str "all-content.dmvbrew"))
      {})))
 
 (reg-event-fx
@@ -3145,7 +3145,7 @@
     (let [blob (js/Blob.
                  (clj->js [(with-out-str (pprint/pprint plugin))])
                  (clj->js {:type "text/plain;charset=utf-8"}))]
-      (js/saveAs blob (str name ".orcbrew"))
+      (js/saveAs blob (str name ".dmvbrew"))
       {})))
 (reg-event-fx
   ::e5/export-all-plugins-pretty-print
@@ -3153,7 +3153,7 @@
     (let [blob (js/Blob.
                  (clj->js [(with-out-str (pprint/pprint @(subscribe [::e5/plugins])))])
                  (clj->js {:type "text/plain;charset=utf-8"}))]
-      (js/saveAs blob (str "all-content.orcbrew"))
+      (js/saveAs blob (str "all-content.dmvbrew"))
       {})))
 
 (reg-event-fx
@@ -3197,7 +3197,7 @@
               (spec/explain-data ::e5/plugins plugin))
          (prn "INVALID PLUGIN FILE"
               (spec/explain-data ::e5/plugin plugin))
-         {:dispatch [:show-error-message "Invalid .orcbrew file"]})))))
+         {:dispatch [:show-error-message "Invalid .orcbrew/.dmvbrew file"]})))))
 
 (reg-event-db
  ::spells/set-spell
