@@ -482,8 +482,8 @@
        :max (or max num)
        :tags #{:spells}})))
 
-(defn spell-slot-schedule [level-factor]
-  (case level-factor
+(defn spell-slot-schedule [slot-factor]
+  (case slot-factor
     1 {1 {1 2}
        2 {1 1}
        3 {1 1
@@ -515,7 +515,15 @@
        17 {4 1
            5 1}
        19 {5 1}}
-    3 {1 {1 2}
+    3 {3 {1 2}
+       4 {1 1}
+       7 {1 1
+          2 2}
+       10 {2 1}
+       13 {3 2}
+       16 {3 1}
+       19 {4 1}}
+    4 {1 {1 2}
        3 {1 1}
        5 {1 1
           2 2}
@@ -527,18 +535,10 @@
        17 {4 1
            5 1}
        19 {5 1}}
-    4 {3 {1 2}
-       4 {1 1}
-       7 {1 1
-          2 2}
-       10 {2 1}
-       13 {3 2}
-       16 {3 1}
-       19 {4 1}}
     {}))
 
-(defn total-slots [level level-factor]
-  (let [schedule (spell-slot-schedule level-factor)]
+(defn total-slots [level slot-factor]
+  (let [schedule (spell-slot-schedule slot-factor)]
     (reduce
      (fn [m lvl]
        (merge-with + m (schedule lvl)))
@@ -612,7 +612,7 @@
   (reduce
    (fn [m [cls-lvl v]]
      (let [[num restriction] (if (number? v) [v] ((juxt :num :restriction) v))
-           slots (or (if slot-schedule (slot-schedule cls-lvl)) (total-slots cls-lvl level-factor))
+           slots (or (if slot-schedule (slot-schedule cls-lvl)) (total-slots cls-lvl slot-factor))
            all-spells (select-keys
                        (or spells (spell-lists (or spell-list-kw class-key)))
                        (keys slots))
