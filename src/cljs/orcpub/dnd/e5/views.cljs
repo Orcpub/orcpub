@@ -6991,7 +6991,7 @@
                                                    (let [text (.. e -target -result)]
                                                     (dispatch [::e5/import-plugin nm text]))))
                                                (.readAsText reader file))
-                                              (let [nm (first (s/split filename (or #".dmvbrew")))]
+                                              (let [nm (first (s/split filename (or #".vaultbrew")))]
                                                (.addEventListener
                                                 reader
                                                 "load"
@@ -7261,7 +7261,7 @@
     [:div.p-20.bg-lighter.main-text-color.m-b-10.m-l-10.m-r-10.b-rad-5
      [:div.f-w-b.f-s-24.m-b-5 "Import Option Source"]
      [:input {:type "file"
-              :accept [".orcbrew", ".dmvbrew"]
+              :accept [".orcbrew", ".vaultbrew"]
               :on-change import-file}]]
     [my-content]]])
 
