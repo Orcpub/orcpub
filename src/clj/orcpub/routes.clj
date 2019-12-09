@@ -933,6 +933,7 @@
    [route-map/dnd-e5-subclass-builder-page-route]
    [route-map/dnd-e5-class-builder-page-route]
    [route-map/dnd-e5-language-builder-page-route]
+   [route-map/dnd-e5-metamagic-builder-page-route]
    [route-map/dnd-e5-invocation-builder-page-route]
    [route-map/dnd-e5-boon-builder-page-route]
    [route-map/dnd-e5-feat-builder-page-route]

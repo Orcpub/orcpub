@@ -45,6 +45,7 @@
    routes/dnd-e5-class-builder-page-route views/class-builder-page
    routes/dnd-e5-feat-builder-page-route views/feat-builder-page
    routes/dnd-e5-language-builder-page-route views/language-builder-page
+   routes/dnd-e5-metamagic-builder-page-route views/metamagic-builder-page
    routes/dnd-e5-invocation-builder-page-route views/invocation-builder-page
    routes/dnd-e5-boon-builder-page-route views/boon-builder-page
    routes/dnd-e5-selection-builder-page-route views/selection-builder-page

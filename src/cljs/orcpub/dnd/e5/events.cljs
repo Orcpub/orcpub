@@ -37,6 +37,7 @@
                                       combat->local-store
                                       background->local-store
                                       language->local-store
+                                      metamagic->local-store
                                       invocation->local-store
                                       boon->local-store
                                       selection->local-store
@@ -54,6 +55,7 @@
                                       default-combat
                                       default-background
                                       default-language
+                                      default-metamagic
                                       default-invocation
                                       default-boon
                                       default-selection
@@ -107,6 +109,8 @@
 
 (def language->local-store-interceptor (after language->local-store))
 
+(def metamagic->local-store-interceptor (after metamagic->local-store))
+
 (def invocation->local-store-interceptor (after invocation->local-store))
 
 (def boon->local-store-interceptor (after boon->local-store))
@@ -156,6 +160,9 @@
 
 (def language-interceptors [(path ::langs5e/builder-item)
                             language->local-store-interceptor])
+
+(def metamagic-interceptors [(path ::class5e/metamagic-builder-item)
+                              metamagic->local-store-interceptor])
 
 (def invocation-interceptors [(path ::class5e/invocation-builder-item)
                               invocation->local-store-interceptor])
@@ -503,6 +510,14 @@
  "You must specify 'Name', 'Option Source Name'")
 
 (reg-save-homebrew
+ "Metamagic"
+ ::class5e/save-metamagic
+ ::class5e/metamagic-builder-item
+ ::class5e/homebrew-metamagic
+ ::e5/metamagic
+ "You must specify 'Name', 'Option Source Name'")
+
+(reg-save-homebrew
  "Invocation"
  ::class5e/save-invocation
  ::class5e/invocation-builder-item
@@ -591,6 +606,10 @@
 (reg-delete-homebrew
  ::langs5e/delete-language
  ::e5/languages)
+
+(reg-delete-homebrew
+ ::class5e/delete-metamagic
+ ::e5/metamagic)
 
 (reg-delete-homebrew
  ::class5e/delete-invocation
@@ -1720,6 +1739,11 @@
  routes/dnd-e5-invocation-builder-page-route)
 
 (reg-edit-homebrew
+ ::class5e/edit-metamagic
+ ::class5e/set-metamagic
+ routes/dnd-e5-metamagic-builder-page-route)
+
+(reg-edit-homebrew
  ::class5e/edit-boon
  ::class5e/set-boon
  routes/dnd-e5-boon-builder-page-route)
@@ -2559,6 +2583,12 @@
    (assoc language prop-key prop-value)))
 
 (reg-event-db
+ ::class5e/set-metamagic-prop
+ metamagic-interceptors
+ (fn [metamagic [_ prop-key prop-value]]
+   (assoc metamagic prop-key prop-value)))
+
+(reg-event-db
  ::class5e/set-invocation-prop
  invocation-interceptors
  (fn [invocation [_ prop-key prop-value]]
@@ -3272,6 +3302,12 @@
    invocation))
 
 (reg-event-db
+ ::class5e/set-metamagic
+ metamagic-interceptors
+ (fn [_ [_ metamagic]]
+   metamagic))
+
+(reg-event-db
  ::class5e/set-boon
  boon-interceptors
  (fn [_ [_ boon]]
@@ -3361,6 +3397,12 @@
  (fn [_ _]
    {:dispatch [::class5e/set-invocation
                default-invocation]}))
+
+(reg-event-fx
+ ::class5e/reset-metamagic
+ (fn [_ _]
+   {:dispatch [::class5e/set-metamagic
+               default-metamagic]}))
 
 (reg-event-fx
  ::class5e/reset-boon
@@ -3619,6 +3661,12 @@
  ::class5e/set-invocation
  default-invocation
  routes/dnd-e5-invocation-builder-page-route)
+
+(reg-new-homebrew
+ ::class5e/new-metamagic
+ ::class5e/set-metamagic
+ default-metamagic
+ routes/dnd-e5-metamagic-builder-page-route)
 
 (reg-new-homebrew
  ::selections5e/new-selection
