@@ -93,10 +93,10 @@
    [:div.flex.p-l-10.p-l-10.p-r-10
     [:input.flex-grow-1
      (merge
-      attrs
+      attrs)]]])
       ;; Rem'd out to allow auto fill on use/password
       ;;{:auto-complete :off}
-     )]]])
+
 
 (defn form-input []
   (let [blurred? (r/atom false)]
@@ -149,36 +149,38 @@
    {:data-layout "button"
     :data-href url}])
 
-(defn on-fb-login [logged-in?]
-  (if (not logged-in?)
-    (do (go (<! (timeout 2000))
-            (if (not @(subscribe [:login-message-shown?]))
-              (dispatch [:show-login-message "You must enable popups to allow Facebook login."])))
-        (if js/FB
-          (.login js/FB events/fb-login-callback (clj->js {:scope "email"}))))))
-
-(defn fb-login-button-comp []
-  [:div.flex.justify-cont-s-a
-   [:button.form-button.flex.align-items-c
-    (let [logged-in? @(subscribe [:fb-logged-in?])]
-      {:on-click #(if logged-in?
-                    (dispatch [:fb-logout])
-                    (on-fb-login logged-in?))})
-    [:i.fa.fa-facebook.f-s-18]
-    [:span.m-l-10.f-s-14
-     "Login with Facebook"]]])
-
+;;TODO FB removal ;TK
+;(defn on-fb-login [logged-in?]
+;  (if (not logged-in?)
+;    (do (go (<! (timeout 2000))
+;            (if (not @(subscribe [:login-message-shown?]))
+;              (dispatch [:show-login-message "You must enable popups to allow Facebook login."])))
+;        (if js/FB
+;          (.login js/FB events/fb-login-callback (clj->js {:scope "email"}))))))
+;
+;(defn fb-login-button-comp []
+;  [:div.flex.justify-cont-s-a
+;   [:button.form-button.flex.align-items-c
+;    (let [logged-in? @(subscribe [:fb-logged-in?])]
+;      {:on-click #(if logged-in?
+;                    (dispatch [:fb-logout])
+;                    (on-fb-login logged-in?))})
+;    [:i.fa.fa-facebook.f-s-18]
+;    [:span.m-l-10.f-s-14
+;     "Login with Facebook"]]])
+;
 (defn dispatch-init-fb []
   (dispatch [:init-fb]))
 
+;; Safe? Related to share button
 (defn add-facebook-init [comp]
   (with-meta
     comp
-    {:component-did-mount dispatch-init-fb}))
+   {:component-did-mount dispatch-init-fb}))
 
-(def facebook-login-button
-  (add-facebook-init
-   fb-login-button-comp))
+;(def facebook-login-button
+;  (add-facebook-init
+;   fb-login-button-comp))
 
 (def facebook-share-button
   (add-facebook-init
@@ -504,8 +506,8 @@
           {:name "Combat Tracker"
            :route routes/dnd-e5-combat-tracker-page-route}
           {:name "Encounter Builder"
-           :route routes/dnd-e5-encounter-builder-page-route}
-          ]
+           :route routes/dnd-e5-encounter-builder-page-route}]
+
          [header-tab
           "My Content"
           "beer-stein"
@@ -600,7 +602,7 @@
     (fn []
       (registration-page
        [:div.flex.justify-cont-s-b {:style {:text-align :center
-                           :flex-direction :column}}
+                                            :flex-direction :column}}
         [:div.p-20
          [:div.f-w-b.f-s-24.p-b-10
           "Your key has expired."]
@@ -830,10 +832,10 @@
                     :type :password
                     :on-change (fn [e] (dispatch [:registration-password (event-value e)]))}]
        (let [[color text]
-              (cond
-                (= 5 password-strength) ["bg-green" "Strong"]
-                (< 1 password-strength 5) ["bg-orange" "Moderate"]
-                :else ["bg-red" "Weak"])]
+             (cond
+               (= 5 password-strength) ["bg-green" "Strong"]
+               (< 1 password-strength 5) ["bg-orange" "Moderate"]
+               :else ["bg-red" "Weak"])]
          [:div.p-r-10.p-l-10.p-t-5
           [:div
            {:style {:position :relative
@@ -857,8 +859,8 @@
            [:div.main-text-color.p-l-10.b-rad-5
             {:style {:position :absolute
                      :padding-top "6px"}}
-             [:span "Password Strength:"]
-             [:span.f-w-b.m-l-5 text]]]])
+            [:span "Password Strength:"]
+            [:span.f-w-b.m-l-5 text]]]])
        [:div.m-t-20
         {:style {:text-align :left
                  :margin-left "15px"}}
@@ -913,8 +915,10 @@
                          :text-shadow "1px 2px 1px rgba(0,0,0,0.37)"
                          :margin-top "20px"}}
            "LOGIN"]
-          [:div.m-t-10
-           [facebook-login-button]]
+; TODO remove completely? ;TK
+; Unused since the API change and source forking
+;          [:div.m-t-10
+;           [facebook-login-button]]
           [:div
            {:style {:margin-top "50px"}}
            [form-input {:title "Username or Email"
@@ -1040,7 +1044,7 @@
         [:i.fa.fa-cloud-download]]
        [:div.orange.pointer.underline
         {:on-click #(swap! expanded? not)
-         :title "Development - Debug Info" }
+         :title "Development - Debug Info"}
         [:i.fa.fa-bug {:class-name (if @expanded? "white")}]]
        (if @expanded?
          [:textarea.m-t-5
@@ -1061,8 +1065,8 @@
                               :device-type (user-agent/device-type)
                               :platform (user-agent/platform)
                               :platform-version (user-agent/platform-version)
-                              :character (char/to-strict @(subscribe [:character]))})}])
-       ])))
+                              :character (char/to-strict @(subscribe [:character]))})}])])))
+
 
 (defn dice-roll-result [{:keys [total rolls mod raw-mod plus-minus]}]
   [:div.white.f-s-32.flex.align-items-c
@@ -1437,45 +1441,45 @@
 (def cos-link (amazon-link "COS" "https://www.amazon.com/gp/product/0786965983/ref=as_li_tl?ie=UTF8&tag=orcpub-20&camp=1789&creative=9325&linkCode=as2&creativeASIN=0786965983&linkId=b47dbcb3687fd053c365d68c7132937e"))
 
 #_(defn amazon-frame [link]
-  [:iframe {:style {:width "120px" :height "240px"}
-            :margin-width 0
-            :margin-height 0
-            :scrolling :no
-            :frame-border 0
-            :src link}])
+   [:iframe {:style {:width "120px" :height "240px"}
+             :margin-width 0
+             :margin-height 0
+             :scrolling :no
+             :frame-border 0
+             :src link}])
 
 #_(def scag-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965800&asins=0786965800&linkId=f35402a86dd0851190d952228fab36e9&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965800&asins=0786965800&linkId=f35402a86dd0851190d952228fab36e9&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def volos-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966017&asins=0786966017&linkId=8c552e7b980d7d944bd12dec57e002e8&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966017&asins=0786966017&linkId=8c552e7b980d7d944bd12dec57e002e8&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def phb-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965606&asins=0786965606&linkId=3b5b686390559c31dbc3c20d20f37ec4&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965606&asins=0786965606&linkId=3b5b686390559c31dbc3c20d20f37ec4&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def dmg-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965622&asins=0786965622&linkId=01922a9aafc4ea52eb90aed12bbeac04&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965622&asins=0786965622&linkId=01922a9aafc4ea52eb90aed12bbeac04&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def mm-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965614&asins=0786965614&linkId=5300756d865067bd552325212c176447&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965614&asins=0786965614&linkId=5300756d865067bd552325212c176447&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def xanathars-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966114&asins=0786966114&linkId=b1241c813fda22ff1b5ba56ba52cee50&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966114&asins=0786966114&linkId=b1241c813fda22ff1b5ba56ba52cee50&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def toa-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966106&asins=0786966106&linkId=8ef050066313a6092678df98f18401f7&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=tf_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966106&asins=0786966106&linkId=8ef050066313a6092678df98f18401f7&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def yawning-portal-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966092&asins=0786966092&linkId=df092b3840d56523be6c3626966a0e47&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966092&asins=0786966092&linkId=df092b3840d56523be6c3626966a0e47&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def cos-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965983&asins=0786965983&linkId=91dfcae14b0c8ecd3795eaf375104ca5&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965983&asins=0786965983&linkId=91dfcae14b0c8ecd3795eaf375104ca5&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def skt-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966009&asins=0786966009&linkId=b0fe41c5ff03ada5d23ebd4a176abcf6&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786966009&asins=0786966009&linkId=b0fe41c5ff03ada5d23ebd4a176abcf6&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def oota-amazon-frame
-  (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965819&asins=0786965819&linkId=125c478897a63892c24d0ca46c198848&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
+   (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965819&asins=0786965819&linkId=125c478897a63892c24d0ca46c198848&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
 
 #_(def pota-amazon-frame
     (amazon-frame "//ws-na.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=US&source=ac&ref=qf_sp_asin_til&ad_type=product_link&tracking_id=orcpub-20&marketplace=amazon&region=US&placement=0786965789&asins=0786965789&linkId=a2c9018a5e1260f518fa6b0fd0812350&show_border=false&link_opens_in_new_window=true&price_color=ffffff&title_color=f0a100&bg_color=2c3445"))
@@ -1589,7 +1593,7 @@
            [:div.legal-footer
             [:p "© 2019 OrcPub" [:span.m-l-20 "Contact: " [:a {:href "mailto:redorc@orcpub.com"} "redorc@orcpub.com"]]]
             [:p "Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries. © 2019 Wizards. All Rights Reserved. OrcPub.com is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC."]]]
-            [debug-data]]]])]))
+          [debug-data]]]])]))
 
 (def row-style
   {:border-bottom "1px solid rgba(255,255,255,0.5)"})
@@ -2139,19 +2143,19 @@
     equipment)])
 
 #_(defn add-links [desc]
-  desc
-  (let [{:keys [abbr url]} (some (fn [[_ source]]
-                                   (if (and (:abbr source)
-                                            (re-matches (re-pattern (str ".*" (:abbr source) ".*")) desc))
-                             source))
-                 disp/sources)
-        [before after] (if abbr (s/split desc (re-pattern abbr)))]
-    (if abbr
-      [:span
-       [:span before]
-       [:a {:href url :target :_blank} abbr]
-       [:span after]]
-      desc)))
+   desc
+   (let [{:keys [abbr url]} (some (fn [[_ source]]
+                                    (if (and (:abbr source)
+                                             (re-matches (re-pattern (str ".*" (:abbr source) ".*")) desc))
+                                     source))
+                             disp/sources)
+         [before after] (if abbr (s/split desc (re-pattern abbr)))]
+     (if abbr
+       [:span
+        [:span before]
+        [:a {:href url :target :_blank} abbr]
+        [:span after]]
+       desc)))
 
 (defn attack-comp [name description]
   [:p.m-t-10
@@ -2409,11 +2413,11 @@
          (fn [k]
            ^{:key k}
             [:tr.t-a-l
-            {:class-name (if (saving-throws k) "f-w-b" "opacity-7")}
-            [:td [:div
-                  (t/ability-icon k 18 theme)
-                  [:span.m-l-5.saving-throw-name (s/upper-case (name k))]]]
-            [:td [:div.p-5.saving-throw-bonus (common/bonus-str (save-bonuses k))]]])
+             {:class-name (if (saving-throws k) "f-w-b" "opacity-7")}
+             [:td [:div
+                   (t/ability-icon k 18 theme)
+                   [:span.m-l-5.saving-throw-name (s/upper-case (name k))]]]
+             [:td [:div.p-5.saving-throw-bonus (common/bonus-str (save-bonuses k))]]])
          char/ability-keys))]]]))
 
 (defn feet-str [num]
@@ -2432,12 +2436,12 @@
      [:span.f-s-24.f-w-b
       [:span
        [:span [:div.speed (feet-str (+ (or unarmored-speed-bonus 0)
-                      (if speed-with-armor
-                        (speed-with-armor nil)
-                        speed)))]
-       (if (or unarmored-speed-bonus
-               speed-with-armor)
-         [:span.display-section-qualifier-text "(unarmored)"])]]
+                                     (if speed-with-armor
+                                       (speed-with-armor nil)
+                                       speed)))]
+        (if (or unarmored-speed-bonus
+                speed-with-armor)
+          [:span.display-section-qualifier-text "(unarmored)"])]]
       (if speed-with-armor
         [:div.f-s-18
          (doall
@@ -2449,22 +2453,22 @@
                [:div
                 [:div.speed
                  [:span (feet-str speed)]]
-                 [:span.display-section-qualifier-text (str "(" (:name armor) " armor)")]]))
+                [:span.display-section-qualifier-text (str "(" (:name armor) " armor)")]]))
            (dissoc all-armor :shield)))]
         (if unarmored-speed-bonus
           [:div.f-s-18
            [:span
             [:div.speed
-            [:span (feet-str speed)]]
+             [:span (feet-str speed)]]
             [:span.display-section-qualifier-text "(armored)"]]]))
       (if (and swim-speed (pos? swim-speed))
         [:div.f-s-18
          [:div.speed
-         [:span (feet-str swim-speed)]] [:span.display-section-qualifier-text "(swim)"]])
+          [:span (feet-str swim-speed)]] [:span.display-section-qualifier-text "(swim)"]])
       (if (and flying-speed (pos? flying-speed))
         [:div.f-s-18
          [:div.speed
-         [:span (feet-str flying-speed)]] [:span.display-section-qualifier-text "(fly)"]])]]))
+          [:span (feet-str flying-speed)]] [:span.display-section-qualifier-text "(fly)"]])]]))
 
 (defn personality-section [title & descriptions]
   (if (and (seq descriptions)
@@ -2565,15 +2569,15 @@
              [:svg {:width "250px"
                     :view-box "0 0 200 40"}
               [:line.stroke-color {:x1 "10"
-                      :y1 "20"
-                      :x2 "190"
-                      :y2 "20"
-                      :style stroke-style}]
+                                   :y1 "20"
+                                   :x2 "190"
+                                   :y2 "20"
+                                   :style stroke-style}]
               [:line.stroke-color {:x1 "20"
-                      :y1 "10"
-                      :x2 "20"
-                      :y2 "25"
-                      :style stroke-style}]
+                                   :y1 "10"
+                                   :x2 "20"
+                                   :y2 "25"
+                                   :style stroke-style}]
               (if (not max-levels?)
                 [:line.stroke-color {:x1 "180"
                                      :y1 "10"
@@ -2595,14 +2599,14 @@
                           :y2 "17"
                           :style bar-stroke-style}]))
               [:text.main-text-color {:x "8"
-                      :y "30"
-                      :fill "white"
-                      :font-size "8"}
+                                      :y "30"
+                                      :fill "white"
+                                      :font-size "8"}
                (str "Level " total-levels)]
               [:text.main-text-color {:x "9"
-                      :y "36"
-                      :fill "white"
-                      :font-size "6"}
+                                      :y "36"
+                                      :fill "white"
+                                      :font-size "6"}
                current-level-xps]
               (if (not max-levels?)
                 [:text.main-text-color {:x "165"
@@ -2934,9 +2938,9 @@
              (map
               (fn [[item-kw item-cfg]]
                 (let [item-name (::char-equip/name item-cfg)
-                      {:keys [name cost weight] :as item} (equip/equipment-map item-kw)
+                      {:keys [name cost weight] :as item} (equip/equipment-map item-kw)]
                       ;;expanded? (@expanded-details item-kw)
-                      ]
+
                   ^{:key item-kw}
                   [:tr
                    [:td.p-10.f-w-b (or (:name item) item-name)]
@@ -3173,21 +3177,21 @@
            :value off-hand-weapon-kw
            :on-change (wield-handler ::char/wield-off-hand-weapon id)}])
        #_[:div.flex.flex-wrap
-        [equipped-section-dropdown
-         "Attuned Magic Item 1"
-         {:items [none-item]
-          :value nil
-          :on-change (fn [])}]
-        [equipped-section-dropdown
-         "Attuned Magic Item 2"
-         {:items [none-item]
-          :value nil
-          :on-change (fn [])}]
-        [equipped-section-dropdown
-         "Attuned Magic Item 3"
-         {:items [none-item]
-          :value nil
-          :on-change (fn [])}]]])]])
+          [equipped-section-dropdown
+           "Attuned Magic Item 1"
+           {:items [none-item]
+            :value nil
+            :on-change (fn [])}]
+          [equipped-section-dropdown
+           "Attuned Magic Item 2"
+           {:items [none-item]
+            :value nil
+            :on-change (fn [])}]
+          [equipped-section-dropdown
+           "Attuned Magic Item 3"
+           {:items [none-item]
+            :value nil
+            :on-change (fn [])}]]])]])
 
 (defn combat-details [num-columns id]
   (let [weapon-profs @(subscribe [::char/weapon-profs id])
@@ -4374,6 +4378,236 @@
           #(dispatch [toggle-event :tool-prof-or-expertise key])]])
       equip/tools))]])
 
+;
+;codeglaze 200102
+;weapon packages?
+;based off of level modifiers
+(defn class-starting-equipment [class]
+  [:div.m-t-20.m-b-20
+   [:div.f-s-24.f-w-b.m-b-10 "Starting Equipment"]
+   ;[:div.m-b-10
+   ;[:div.f-s-18.f-w-b.m-b-10 "Treasure"]
+    ;[input-builder-field
+     ;[:span.f-w-b "Gold"]
+     ;(get-in background [:treasure :gp])
+     ;#(dispatch [::bg/set-background-gold %])
+     ;{:class-name "input h-40"
+     ; :type :number}]]
+   [:div.m-b-10
+    [:div.f-s-18.f-w-b.m-b-10 "Clothing"]
+    [:div [starting-equipment-checkboxes background equip/clothes]]]
+   [:div.m-b-10
+    [:div.f-s-18.f-w-b.m-b-10 "Artisan's Tools"]
+    [:div [starting-equipment-choice-checkboxes background equip/artisans-tools "Artisan's Tools"]]
+    [:div [starting-equipment-checkboxes background equip/artisans-tools]]]
+   [:div.m-b-20
+    [:div.f-s-18.f-w-b.m-b-10 "Musical Instruments"]
+    [starting-equipment-choice-checkboxes background equip/musical-instruments "Musical Instruments"]]
+   [:div.m-b-10
+    [:div.f-s-18.f-w-b.m-b-10 "Other Tools"]
+    [starting-equipment-checkboxes background equip/misc-tools]]
+   [:div.m-b-10
+    [:div.f-s-18.f-w-b.m-b-10 "Holy Symbols"]
+    [starting-equipment-checkboxes background equip/holy-symbols]]
+   [:div.m-b-10
+    [:div.f-s-18.f-w-b.m-b-10 "Other Equipment"]
+    [starting-equipment-checkboxes background equip/misc-equipment]]])
+#_ (defn weapon-values []
+    (sorted-map-by
+     <
+     :weapon-prof {:name "Weapon Proficiency"
+                   :value-fn keyword
+                   :values (concat
+                            (map
+                             (fn [type]
+                               {:title (str "All " (name type))
+                                :value type})
+                             [:simple :martial])
+                            (map
+                             obj-to-item
+                             @(subscribe [::mi/custom-and-standard-weapons])))}
+     :num-attacks {:name "Number of Attacks"
+                   :value-fn js/parseInt
+                   :values (map
+                            value-to-item
+                            (range 2 5))}
+     :damage-resistance {:name "Damage Resistance"
+                         :value-fn keyword
+                         :values damage-dropdown-values}
+     :damage-immunity {:name "Damage Immunity"
+                       :value-fn keyword
+                       :values damage-dropdown-values}
+     :saving-throw-advantage {:name "Saving Throw Advantage"
+                              :value-fn keyword
+                              :values (map
+                                       obj-to-item
+                                       opt/conditions)}
+     :skill-prof {:name "Skill Proficiency"
+                  :value-fn keyword
+                  :values (map
+                           obj-to-item
+                           skills/skills)}
+     :armor-prof {:name "Armor Proficiency"
+                  :value-fn keyword
+                  :values (concat
+                           (map
+                            (fn [armor-type]
+                              {:title armor-type
+                               :value (name armor-type)})
+                            [:light :medium :heavy :shields]))}
+     :tool-prof {:name "Tool Proficiency"
+                 :value-fn keyword
+                 :values (map
+                          obj-to-item
+                          equip/tools)}
+     :flying-speed {:name "Flying Speed"
+                    :value-fn js/parseInt
+                    :values (map
+                             (fn [speed]
+                               {:title (str speed " ft.")
+                                :value speed})
+                             (range 10 130 10))}
+     :flying-speed-equals-walking-speed {:name "Flying Speed Equals Walking Speed"}
+     :swimming-speed {:name "Swimming Speed"
+                      :value-fn js/parseInt
+                      :values (map
+                               (fn [speed]
+                                 {:title (str speed " ft.")
+                                  :value speed})
+                               (range 10 130 10))}
+     :spell {:name "Spell"
+             :component spell-selector}))
+;TK weapons add
+#_ (defn modifier-level-selector [index level edit-modifier-level-event]
+    [labeled-dropdown
+     "Unlock at Level"
+     {:items (map
+              (fn [lvl]
+                {:title lvl
+                 :value lvl})
+              (range 1 21))
+      :value level
+      :on-change #(dispatch [edit-modifier-level-event index (js/parseInt %)])}])
+;TK weapons add
+#_(defn option-level-selection [{:keys [type level num]}
+                                index
+                                edit-selection-type-event
+                                edit-selection-num-event
+                                edit-selection-level-event
+                                delete-selection-event]
+   (let [selections @(subscribe [::selections/plugin-selections])]
+     [:div
+      [:div.flex.flex-wrap.align-items-end.m-b-20
+       [:div.m-t-10
+        [labeled-dropdown
+         "Selection Type"
+         {:items (sort-by :title (concat
+                                  [{:title "<select type to add>"
+                                    :disabled? true
+                                    :value :select}]
+                                  (map
+                                   obj-to-item
+                                   selections)
+                                  [{:title "<create new selection>"
+                                    :value :new-selection}]))
+          :value (or type :select)
+          :on-change #(if (= "new-selection" %)
+                        (dispatch [::selections/new-selection])
+                        (dispatch [edit-selection-type-event index (keyword %)]))}]]
+       (if type
+         [:div.m-t-10.m-l-5
+          [modifier-level-selector index level edit-selection-level-event]])
+       (if type
+         [:div.m-t-10.m-l-5
+          [labeled-dropdown
+           "Amount to Select at this Level"
+           {:items (map
+                    value-to-item
+                    (range 1 11))
+            :value (or num 1)
+            :on-change #(dispatch [edit-selection-num-event index (js/parseInt %)])}]])
+       (if (or type level num)
+         [:div.m-t-10
+          [:button.form-button.m-l-5
+           {:on-click #(dispatch [delete-selection-event index])}
+           "delete"]])]]))
+;TK weapons add
+#_(defn option-weapon-package [{:keys [type value level]}
+                               index
+                               edit-weapon-type-event
+                               edit-weapon-value-event
+                               edit-weapon-level-event
+                               delete-weapon-event]
+   (let [wep-values (weapon-values)
+         {:keys [name values component value-fn]} (if type (wep-values type))]
+     [:div
+      [:div.flex.flex-wrap.align-items-end.m-b-20
+       [:div.m-t-10
+        [labeled-dropdown
+         "Weapon Type"
+         {:items (sort-by :title (cons
+                                  {:title "<select type to add>"
+                                   :disabled? true
+                                   :value :select}
+                                  (map
+                                   (fn [[kw {:keys [name]}]]
+                                     {:title name
+                                      :value kw})
+                                   wep-values)))
+          :value (if type (clojure.core/name type) :select)
+          :on-change #(dispatch [edit-modifier-type-event index (keyword %)])}]]
+       (if type
+         [:div.m-t-10.m-l-5
+          [modifier-level-selector index level edit-modifier-level-event]])
+       (if (and type values)
+         [:div.m-l-5.m-t-10
+          [labeled-dropdown
+           name
+           {:items (cons
+                    {:title "<select value>"
+                     :disabled? true
+                     :value :select}
+                    values)
+            :value (or value :select)
+            :on-change #(dispatch [edit-modifier-value-event index (value-fn %)])}]]
+         (if component
+           [:div.m-l-5 [component index value edit-modifier-value-event]]))
+       (if (or type level value)
+         [:div.m-t-10
+          [:button.form-button.m-l-5
+           {:on-click #(dispatch [delete-modifier-event index])}
+           "delete"]])]]))
+;TK weapons add
+#_(defn option-weapon-package-choice [{:keys [level-modifiers]}
+                                      add-modifier-event
+                                      edit-modifier-type-event
+                                      edit-modifier-value-event
+                                      edit-modifier-level-event
+                                      delete-modifier-event]
+   [:div
+    [:div
+     (doall
+      (map-indexed
+       (fn [index modifier]
+         ^{:key index}
+         [option-level-modifier
+          modifier
+          index
+          edit-modifier-type-event
+          edit-modifier-value-event
+          edit-modifier-level-event
+          delete-modifier-event])
+       level-modifiers))]
+    [:div
+     [option-level-modifier
+      nil
+      (count level-modifiers)
+      edit-modifier-type-event
+      edit-modifier-value-event
+      edit-modifier-level-event
+      delete-modifier-event]]])
+;;End TK weapons add
+
 (defn background-skill-proficiencies [background]
   [:div.m-b-20
    [:div.f-s-24.f-w-b.m-b-20 "Skill Proficiencies"]
@@ -5133,11 +5367,11 @@
     :on-change #(dispatch [edit-modifier-level-event index (js/parseInt %)])}])
 
 (defn option-level-selection [{:keys [type level num]}
-                             index
-                             edit-selection-type-event
-                             edit-selection-num-event
-                             edit-selection-level-event
-                             delete-selection-event]
+                              index
+                              edit-selection-type-event
+                              edit-selection-num-event
+                              edit-selection-level-event
+                              delete-selection-event]
   (let [selections @(subscribe [::selections/plugin-selections])]
     [:div
      [:div.flex.flex-wrap.align-items-end.m-b-20
@@ -5145,14 +5379,14 @@
        [labeled-dropdown
         "Selection Type"
         {:items (sort-by :title (concat
-                 [{:title "<select type to add>"
-                   :disabled? true
-                   :value :select}]
-                 (map
-                  obj-to-item
-                  selections)
-                 [{:title "<create new selection>"
-                   :value :new-selection}]))
+                                 [{:title "<select type to add>"
+                                   :disabled? true
+                                   :value :select}]
+                                 (map
+                                  obj-to-item
+                                  selections)
+                                 [{:title "<create new selection>"
+                                   :value :new-selection}]))
          :value (or type :select)
          :on-change #(if (= "new-selection" %)
                        (dispatch [::selections/new-selection])
@@ -5189,14 +5423,14 @@
        [labeled-dropdown
         "Modifier Type"
         {:items (sort-by :title (cons
-                 {:title "<select type to add>"
-                  :disabled? true
-                  :value :select}
-                 (map
-                  (fn [[kw {:keys [name]}]]
-                    {:title name
-                     :value kw})
-                  mod-values)))
+                                 {:title "<select type to add>"
+                                  :disabled? true
+                                  :value :select}
+                                 (map
+                                  (fn [[kw {:keys [name]}]]
+                                    {:title name
+                                     :value kw})
+                                  mod-values)))
          :value (if type (clojure.core/name type) :select)
          :on-change #(dispatch [edit-modifier-type-event index (keyword %)])}]]
       (if type
@@ -5292,11 +5526,11 @@
     "remove"]])
 
 (defn option-level-selections [{:keys [level-selections]}
-                              add-selection-event
-                              edit-selection-type-event
-                              edit-selection-num-event
-                              edit-selection-level-event
-                              delete-selection-event]
+                               add-selection-event
+                               edit-selection-type-event
+                               edit-selection-num-event
+                               edit-selection-level-event
+                               delete-selection-event]
   [:div
    [title-with-help
     [:span.f-w-b.f-s-24 "Selections"]
@@ -5573,6 +5807,13 @@
        ::e5/edit-class-selection-num
        ::e5/edit-class-selection-level
        ::e5/delete-class-selection]]
+     [:div [class-starting-equipment class]] ;codeglaze
+;     [:div ;codeglaze 200102
+;      [option-weapon-package-choice
+;       class
+;       ::e5/add-weapon
+;       ::classes/set-class-path-prop
+;       ::classes/toggle-class-path-prop]]
      [:div
       [option-traits
        class
@@ -6273,8 +6514,8 @@
        "Speed"
        :speed
        monster
-       "m-l-5 m-b-5 flex-grow-1"]
-      ]
+       "m-l-5 m-b-5 flex-grow-1"]]
+
      [:div
       [:div.f-s-24.f-w-b "Abilities"]
       [:div.flex.w-100-p.flex-wrap
@@ -6339,21 +6580,21 @@
        :senses
        monster
        "m-l-5 m-b-5 flex-grow-1"]
-      [:div.m-t-20 [option-languages monster ::monsters/toggle-monster-map-prop]]
-      ]
+      [:div.m-t-20 [option-languages monster ::monsters/toggle-monster-map-prop]]]
+
      [:div.w-100-p.m-b-20
-     [:div.f-s-24.f-w-b.w-20-p "Challenge Rating"
-      [labeled-dropdown
-       ""
-       {:items (map
-                 (fn [v]
-                   {:title (if (< 0 v 1)
-                             (clojure.core/str "1/" (/ 1 v))
-                             v)
-                    :value v})
-                 @(subscribe [::monsters/challenge-ratings]))
-        :value (or challenge 0)
-        :on-change #(dispatch [::monsters/set-monster-prop :challenge (js/parseFloat %)])}]]]
+      [:div.f-s-24.f-w-b.w-20-p "Challenge Rating"
+       [labeled-dropdown
+        ""
+        {:items (map
+                  (fn [v]
+                    {:title (if (< 0 v 1)
+                              (clojure.core/str "1/" (/ 1 v))
+                              v)
+                     :value v})
+                  @(subscribe [::monsters/challenge-ratings]))
+         :value (or challenge 0)
+         :on-change #(dispatch [::monsters/set-monster-prop :challenge (js/parseFloat %)])}]]]
      [:div.w-100-p
       [:div.f-s-24.f-w-b
        "Special Traits"]
@@ -6380,8 +6621,8 @@
        "Legendary Actions"]
       [textarea-field
        {:value (get-in monster [:legendary-actions :description])
-        :on-change #(dispatch [::monsters/set-monster-path-prop [:legendary-actions :description] %])}]]
-     ]))
+        :on-change #(dispatch [::monsters/set-monster-path-prop [:legendary-actions :description] %])}]]]))
+
 
 (defn monster-selector [index {:keys [monster num]} on-key-change on-num-change]
   (let [monsters @(subscribe [::monsters/sorted-monsters])]
@@ -6448,7 +6689,7 @@
                index
                creature
                #(dispatch [::encounters/set-encounter-path-prop
-                          [:creatures index :creature :monster]
+                           [:creatures index :creature :monster]
                            (keyword %)])
                #(dispatch [::encounters/set-encounter-path-prop
                            [:creatures index :creature :num]
@@ -6959,8 +7200,8 @@
         #(dispatch [::spells/toggle-spell-prop :attack-roll?])]]]
      [:div.flex.w-100-p.flex-wrap
       [spell-input-field "Casting Time" :casting-time spell "m-b-20"]
-      [spell-input-field "Range" :range spell "m-l-5 m-b-20"]
-      ]
+      [spell-input-field "Range" :range spell "m-l-5 m-b-20"]]
+
      [:div [:h2.f-s-24.f-w-b.m-b-10 "Components"]]
      [:div.flex.w-100-p.flex-wrap
       [component-checkbox :verbal spell]
@@ -6969,8 +7210,8 @@
      [:div.m-b-20
       [textarea-field
        {:value (get-in spell [:components :material-component])
-        :on-change #(dispatch [::spells/set-material-component %])}]
-      ]
+        :on-change #(dispatch [::spells/set-material-component %])}]]
+
      [:div.w-100-p
       [spell-input-field "Duration" :duration spell "m-b-20"]
       [:div.f-s-24.f-w-b
@@ -7323,10 +7564,10 @@
    [{:title (str "Delete Account")
      :icon "trash"
      :on-click #(dispatch
-                [:show-confirmation
-                 {:confirm-button-text "DELETE ACCOUNT"
-                  :question "Are you sure you want to delete your account, characters, and associated data?"
-                  :event [:delete-account]}])}]
+                 [:show-confirmation
+                  {:confirm-button-text "DELETE ACCOUNT"
+                   :question "Are you sure you want to delete your account, characters, and associated data?"
+                   :event [:delete-account]}])}]
    [:div.f-s-24.p-10.white
     [:div.p-5
      [:span.f-w-b "Username: "]
@@ -7504,8 +7745,8 @@
           [character-summary-2 summary true owner false]]]]
        [:div.orange.pointer.m-r-10
         (if (not= @(subscribe [:device-type]) :mobile) [:span.underline (if expanded?
-                                                            "collapse"
-                                                            "open")])
+                                                                         "collapse"
+                                                                         "open")])
         [:i.fa.m-l-5
          {:class-name (if expanded? "fa-caret-up" "fa-caret-down")}]]]
       (if expanded?
@@ -7586,92 +7827,92 @@
            :on-click (make-event-handler ::party/make-empty-party)}]
          [:div.p-5
            [:div
-           (doall
-            (map
-             (fn [{:keys [:db/id ::party/name] characters ::party/character-ids}]
-               (let [editing? (get @editing-parties id)
-                     character-ids (into #{} (map :db/id) characters)]
-                 ^{:key id}
-                 [:div.m-b-40
-                  [:div.m-b-10.main-text-color.f-w-b.f-s-16
-                   [:div.flex.align-items-c
-                    [:i.fa.fa-users.m-l-10]
-                    (if editing?
-                      [:div.flex.align-items-c.flex-wrap
-                       [:input.input.m-l-10
-                        {:value (or (@editing-parties id) name)
-                         :style party-name-editor-style
-                         :on-change (set-editing-party-handler editing-parties id)}]
-                       [:div.m-l-10.w-200
-                        [comps/selection-adder
-                         (sequence
-                          (comp
-                           (remove
-                            (fn [{:keys [:db/id]}]
-                              (character-ids id)))
-                           (map
-                            (fn [{:keys [:db/id ::char/character-name]}]
-                              {:name character-name
-                               :key id})))
-                          @(subscribe [::char/characters]))
-                         (fn [e]
-                           (let [selected-id (js/parseInt (.. e -target -value))]
-                             (dispatch [::party/add-character id selected-id])))]]
-                       [:div.m-t-5
-                        [:button.form-button.m-l-10
-                         {:on-click #(do (dispatch [::party/rename-party id (@editing-parties id)])
-                                         (swap! editing-parties assoc id nil))}
-                         "save"]
-                        [:button.form-button.m-l-10
-                         {:on-click #(dispatch [::party/delete-party id])}
-                         "delete"]
-                        [:button.form-button.m-l-10
-                         {:on-click #(swap! editing-parties assoc id nil)}
-                         "cancel"]]]
-                      [:div.flex.align-items-c
-                       [:span.m-l-5 name]
-                       [:i.fa.fa-pencil.m-l-10.opacity-5.hover-opacity-full.pointer
-                        {:on-click #(swap! editing-parties assoc id name)}]])]]
-                  [:div.item-list
-                   (doall
-                    (map
-                     (fn [{:keys [::se/owner] :as summary}]
-                       (let [character-id (:db/id summary)
-                             expanded? (get-in @expanded-characters [id character-id])
-                             char-page-path (routes/path-for routes/dnd-e5-char-page-route :id character-id)
-                             char-page-route (routes/match-route char-page-path)]
-                         ^{:key character-id}
-                         [:div.main-text-color.item-list-item
-                          [:div.pointer
-                           [:div.flex.justify-cont-s-b.align-items-c
-                            {:on-click #(swap! expanded-characters update-in [id character-id] not)}
-                            [:div.m-l-10.flex.align-items-c
-                             [:div.f-s-24.f-w-600
-                              [:div.list-character-summary
-                               [character-summary-2 summary true owner true false]]]]
-                            [:div.orange.pointer.m-r-10
-                             (if (not= device-type :mobile) [:span.underline (if expanded?
-                                                                               "collapse"
-                                                                               "open")])
-                             [:i.fa.m-l-5
-                              {:class-name (if expanded? "fa-caret-up" "fa-caret-down")}]]]
-                           (if expanded?
-                             [:div
-                              {:style character-display-style}
-                              [:div.flex.justify-cont-end.uppercase.align-items-c
-                               (if (= username owner)
-                                 [:button.form-button
-                                  {:on-click #(dispatch [:edit-character @(subscribe [::char/character character-id])])}
-                                  "edit"])
-                               [:button.form-button.m-l-5
-                                {:on-click #(dispatch [:route char-page-route])}
-                                "view"]
-                               [:button.form-button.m-l-5
-                                {:on-click #(dispatch [::party/remove-character id character-id])}
-                                "remove from party"]]
-                              [character-display character-id false (if (= :mobile device-type) 1 2)]])]]))
-                     (sort-by :orcpub.dnd.e5.character/character-name characters)))]]))
-             parties))]]]))))
+            (doall
+             (map
+              (fn [{:keys [:db/id ::party/name] characters ::party/character-ids}]
+                (let [editing? (get @editing-parties id)
+                      character-ids (into #{} (map :db/id) characters)]
+                  ^{:key id}
+                  [:div.m-b-40
+                   [:div.m-b-10.main-text-color.f-w-b.f-s-16
+                    [:div.flex.align-items-c
+                     [:i.fa.fa-users.m-l-10]
+                     (if editing?
+                       [:div.flex.align-items-c.flex-wrap
+                        [:input.input.m-l-10
+                         {:value (or (@editing-parties id) name)
+                          :style party-name-editor-style
+                          :on-change (set-editing-party-handler editing-parties id)}]
+                        [:div.m-l-10.w-200
+                         [comps/selection-adder
+                          (sequence
+                           (comp
+                            (remove
+                             (fn [{:keys [:db/id]}]
+                               (character-ids id)))
+                            (map
+                             (fn [{:keys [:db/id ::char/character-name]}]
+                               {:name character-name
+                                :key id})))
+                           @(subscribe [::char/characters]))
+                          (fn [e]
+                            (let [selected-id (js/parseInt (.. e -target -value))]
+                              (dispatch [::party/add-character id selected-id])))]]
+                        [:div.m-t-5
+                         [:button.form-button.m-l-10
+                          {:on-click #(do (dispatch [::party/rename-party id (@editing-parties id)])
+                                          (swap! editing-parties assoc id nil))}
+                          "save"]
+                         [:button.form-button.m-l-10
+                          {:on-click #(dispatch [::party/delete-party id])}
+                          "delete"]
+                         [:button.form-button.m-l-10
+                          {:on-click #(swap! editing-parties assoc id nil)}
+                          "cancel"]]]
+                       [:div.flex.align-items-c
+                        [:span.m-l-5 name]
+                        [:i.fa.fa-pencil.m-l-10.opacity-5.hover-opacity-full.pointer
+                         {:on-click #(swap! editing-parties assoc id name)}]])]]
+                   [:div.item-list
+                    (doall
+                     (map
+                      (fn [{:keys [::se/owner] :as summary}]
+                        (let [character-id (:db/id summary)
+                              expanded? (get-in @expanded-characters [id character-id])
+                              char-page-path (routes/path-for routes/dnd-e5-char-page-route :id character-id)
+                              char-page-route (routes/match-route char-page-path)]
+                          ^{:key character-id}
+                          [:div.main-text-color.item-list-item
+                           [:div.pointer
+                            [:div.flex.justify-cont-s-b.align-items-c
+                             {:on-click #(swap! expanded-characters update-in [id character-id] not)}
+                             [:div.m-l-10.flex.align-items-c
+                              [:div.f-s-24.f-w-600
+                               [:div.list-character-summary
+                                [character-summary-2 summary true owner true false]]]]
+                             [:div.orange.pointer.m-r-10
+                              (if (not= device-type :mobile) [:span.underline (if expanded?
+                                                                                "collapse"
+                                                                                "open")])
+                              [:i.fa.m-l-5
+                               {:class-name (if expanded? "fa-caret-up" "fa-caret-down")}]]]
+                            (if expanded?
+                              [:div
+                               {:style character-display-style}
+                               [:div.flex.justify-cont-end.uppercase.align-items-c
+                                (if (= username owner)
+                                  [:button.form-button
+                                   {:on-click #(dispatch [:edit-character @(subscribe [::char/character character-id])])}
+                                   "edit"])
+                                [:button.form-button.m-l-5
+                                 {:on-click #(dispatch [:route char-page-route])}
+                                 "view"]
+                                [:button.form-button.m-l-5
+                                 {:on-click #(dispatch [::party/remove-character id character-id])}
+                                 "remove from party"]]
+                               [character-display character-id false (if (= :mobile device-type) 1 2)]])]]))
+                      (sort-by :orcpub.dnd.e5.character/character-name characters)))]]))
+              parties))]]]))))
 
 (defn monster-list-item [{:keys [name size type subtypes alignment key] :as monster}]
   (r/with-let [device-type? (subscribe [:device-type])]

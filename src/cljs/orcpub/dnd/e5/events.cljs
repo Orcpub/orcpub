@@ -1095,7 +1095,7 @@
    character
    path
    (fn [skills]
-     (if selected?                                             
+     (if selected?
        (vec (remove (fn [s] (= skill-key (::entity/key s))) skills))
        (vec (conj skills {::entity/key skill-key}))))))
 
@@ -1383,7 +1383,7 @@
        (= error-code errors/username-required) (dispatch-login-failure "Username is required.")
        (= error-code errors/too-many-attempts) (dispatch-login-failure "You have made too many login attempts, you account is locked for 15 minutes. Please do not try to login again until 15 minutes have passed.")
        (= error-code errors/password-required) (dispatch-login-failure "Password is required.")
-       (= error-code errors/bad-credentials) (dispatch-login-failure "Password is incorrect.") 
+       (= error-code errors/bad-credentials) (dispatch-login-failure "Password is incorrect.")
        (= error-code errors/no-account) {:dispatch-n [[:clear-login]
                                                       (show-old-account-message)]}
        (= error-code errors/unverified) {:db (assoc db :temp-email (-> response :body :email))
@@ -1391,58 +1391,59 @@
        (= error-code errors/unverified-expired) {:dispatch [:route routes/verify-failed-route]}
        :else (dispatch-login-failure [:div "An error occurred. If the problem persists please email " [:a {:href "mailto:redorc@orcpub.com" :target :blank} "redorc@orcpub.com"]])))))
 
-(defn fb []
-  js/FB)
-
-(defn get-fb-user [callback]
-  (if js/FB
-    (.api js/FB "/me?fields=email" callback)))
-
-(defn fb-init []
-  (try
-    ((goog.object.get js/window "fbAsyncInit"))
-    (catch :default e (prn "E" e))))
-
-(defn fb-login-callback [response]
-  (if (= "connected" (.-status response))
-    (do (dispatch [:hide-login-message])
-        (go (let [path (routes/path-for routes/fb-login-route)
-                  url (backend-url path)
-                  {:keys [status] :as response} (<! (http/post url
-                                                     {:json-params (js->clj response)}))]
-              (case status
-                200 (dispatch [:login-success true response])
-                401 (dispatch [:show-login-message "You must allow OrcPub to view your email address so we can create your account. We will not send you emails unless you later give us permission to. In Facebook, please go to 'Settings' > 'Apps', delete 'orcpub', and try again."])
-                nil))))))
-
-(reg-event-fx
- :init-fb
- (fn [_ _]
-   (fb-init)))
-
-(reg-event-db
- :set-fb-logged-in
- (fn [db [_ logged-in?]]
-   (assoc db :fb-logged-in? logged-in?)))
-
-(reg-event-fx
- :fb-logout
- (fn [{:keys [db]} _]
-   (let [facebook js/FB]
-     (if facebook
-       (try
-         (do
-           (prn "FB LOGOUT")
-           (.logout facebook (fn [])))
-         (catch js/Error e (prn "LOGOUT ERROR" e)))))
-   {:db (assoc db :fb-logged-in? false)}))
-
-(reg-event-fx
- :logout
- (fn [cofx [_ response]]
-   {:dispatch-n [[:clear-login]
-                 [:fb-logout]
-                 [:set-fb-logged-in false]]}))
+;;TODO FB removal ;TK
+;(defn fb []
+;  js/FB)
+;
+;(defn get-fb-user [callback]
+;  (if js/FB
+;    (.api js/FB "/me?fields=email" callback)))
+;
+;(defn fb-init []
+;  (try
+;    ((goog.object.get js/window "fbAsyncInit"))
+;    (catch :default e (prn "E" e))))
+;
+;(defn fb-login-callback [response]
+;  (if (= "connected" (.-status response))
+;    (do (dispatch [:hide-login-message])
+;        (go (let [path (routes/path-for routes/fb-login-route)
+;                  url (backend-url path)
+;                  {:keys [status] :as response} (<! (http/post url
+;                                                     {:json-params (js->clj response)}))]
+;              (case status
+;                200 (dispatch [:login-success true response])
+;                401 (dispatch [:show-login-message "You must allow OrcPub to view your email address so we can create your account. We will not send you emails unless you later give us permission to."])
+;                nil))))))
+;
+;(reg-event-fx
+; :init-fb
+; (fn [_ _]
+;   (fb-init)))
+;
+;(reg-event-db
+; :set-fb-logged-in
+; (fn [db [_ logged-in?]]
+;   (assoc db :fb-logged-in? logged-in?)))
+;
+;(reg-event-fx
+; :fb-logout
+; (fn [{:keys [db]} _]
+;   (let [facebook js/FB]
+;     (if facebook
+;       (try
+;         (do
+;           (prn "FB LOGOUT")
+;           (.logout facebook (fn [])))
+;         (catch js/Error e (prn "LOGOUT ERROR" e)))))
+;   {:db (assoc db :fb-logged-in? false)}))
+;
+;(reg-event-fx
+; :logout
+; (fn [cofx [_ response]]
+;   {:dispatch-n [[:clear-login]
+;                 [:fb-logout]
+;                 [:set-fb-logged-in false]]}))
 
 (def login-routes
   #{routes/login-page-route
@@ -2129,7 +2130,7 @@
 
 (defn toggle-feature-used [character units nm]
   (-> character
-   (update-in    
+   (update-in
     [::entity/values
      ::char5e/features-used
      units]
@@ -3222,7 +3223,7 @@
    (let [plugin (try
                   (reader/read-string plugin-text)
                   (catch js/Error e nil))]
-     (cond 
+     (cond
        (spec/valid? ::e5/plugin plugin)
        {:dispatch-n [[::e5/set-plugins (assoc (:plugins db)
                                               plugin-name
@@ -3234,7 +3235,7 @@
                                         (:plugins db)
                                         plugin)]
                      [:show-warning-message "Imported content was merged into your existing content. To be safe, you should 'Export All' and save to a safe location now."]]}
-       
+
        :else
        (do
          (prn "PLUGIN" plugin)

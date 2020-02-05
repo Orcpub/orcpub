@@ -259,30 +259,35 @@
                        :orcpub.user/created (java.util.Date.)
                        :orcpub.user/verified? true}])]
         (user-for-email (d/db conn) oauth-email)))))
+;;TODO FB removal ;TK
+;(defn oauth-login [email-fn]
+;  (fn [{:keys [conn db] :as request}]
+;    (let [fb-email (email-fn request)
+;          user (get-or-create-oauth-user conn db fb-email)]
+;      (create-login-response db user)
+;    ))
+;)
+;
+;(defn fb-login [{:keys [json-params db conn remote-addr] :as request}]
+;  (if-let [access-token (-> json-params :authResponse :accessToken)]
+;    (let [fb-user (oauth/get-fb-user access-token)]
+;      (if-let [email (:email fb-user)]
+;        (create-login-response db (get-or-create-oauth-user conn db email))
+;        (login-error errors/fb-email-permission)))
+;    {:status 400}))
 
-(defn oauth-login [email-fn]
-  (fn [{:keys [conn db] :as request}]
-    (let [fb-email (email-fn request)
-          user (get-or-create-oauth-user conn db fb-email)]
-      (create-login-response db user))))
-
-(defn fb-login [{:keys [json-params db conn remote-addr] :as request}]
-  (if-let [access-token (-> json-params :authResponse :accessToken)]
-    (let [fb-user (oauth/get-fb-user access-token)]
-      (if-let [email (:email fb-user)]
-        (create-login-response db (get-or-create-oauth-user conn db email))
-        (login-error errors/fb-email-permission)))
-    {:status 400}))
-
-(def google-login
-  (oauth-login oauth/get-google-email))
+;;TODO FB removal ;TK
+;; This leverages fb-email for some reason?
+;(def google-login
+;  (oauth-login oauth/get-google-email))
 
 
 (defn google-oauth-code [request]
   (ring-resp/redirect (str oauth/google-oauth-url (oauth/get-google-redirect-uri request))))
 
-(defn fb-oauth-code [request]
-  (ring-resp/redirect (str oauth/fb-oauth-url (oauth/get-fb-redirect-uri request))))
+;;TODO FB removal ;TK
+;(defn fb-oauth-code [request]
+;  (ring-resp/redirect (str oauth/fb-oauth-url (oauth/get-fb-redirect-uri request))))
 
 (defn base-url [{:keys [scheme headers]}]
   (str (or (headers "x-forwarded-proto") (name scheme)) "://" (headers "host")))
@@ -1078,12 +1083,14 @@
         {:delete `party/remove-character}]
        [(route-map/path-for route-map/login-route)
         {:post `login}]
-       ["/code/fb"
-        {:get `fb-oauth-code}]
+       ;;TODO FB removal ;TK
+       ;["/code/fb"
+       ; {:get `fb-oauth-code}]
        ["/code/google"
         {:get `google-oauth-code}]
-       [(route-map/path-for route-map/fb-login-route)
-        {:post `fb-login}]
+       ;;TODO FB removal ;TK
+       ;[(route-map/path-for route-map/fb-login-route)
+       ; {:post `fb-login}]
        #_[(route-map/path-for route-map/google-login-route)
         {:get `google-login}]
        [(route-map/path-for route-map/character-pdf-route)
@@ -1113,5 +1120,3 @@
        ["/health"
         {:get `health-check}]]]])
    expanded-index-routes))
-
-

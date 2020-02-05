@@ -7,4 +7,5 @@
 (def username-required :username-required)
 (def password-required :password-required)
 (def too-many-attempts :too-many-attempts)
-(def fb-email-permission :fb-email-permission)
+;;TODO FB removal ;TK
+;(def fb-email-permission :fb-email-permission)

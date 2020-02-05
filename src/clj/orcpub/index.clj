@@ -30,95 +30,99 @@
             :content "width=device-width, initial-scale=1"}]
     [:style
      "
-.splash-page-content {}
-.splash-button .splash-button-content {height: 120px; width: 120px}
-.splash-button .svg-icon {height: 64px; width: 64px}
+    .splash-page-content {}
+    .splash-button .splash-button-content {height: 120px; width: 120px}
+    .splash-button .svg-icon {height: 64px; width: 64px}
 
-@media (max-width: 767px) 
-{.splash-button .svg-icon {height: 32px; width: 32px}
-.splash-button-title-prefix {display: none}
-.splash-button .splash-button-content {height: 60px; width: 60px; font-size: 10px}
-.legal-footer-parent {display: none}}
+    @media (max-width: 767px)
+    {.splash-button .svg-icon {height: 32px; width: 32px}
+    .splash-button-title-prefix {display: none}
+    .splash-button .splash-button-content {height: 60px; width: 60px; font-size: 10px}
+    .legal-footer-parent {display: none}}
 
-#app {height:100%;background-image: linear-gradient(182deg, #313A4D, #080A0D)}
+    #app {height:100%;background-image: linear-gradient(182deg, #313A4D, #080A0D)}
 
-.app {background-image: linear-gradient(182deg, #313A4D, #080A0D);height:100%;overflow-y:scroll;-webkit-overflow-scrolling :touch;font-family:Open Sans, sans-serif}
+    .app {background-image: linear-gradient(182deg, #313A4D, #080A0D);height:100%;overflow-y:scroll;-webkit-overflow-scrolling :touch;font-family:Open Sans, sans-serif}
 
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, figcaption, figure, 
-footer, header, hgroup, menu, nav, section, summary,
-time, mark, audio, video {
-	margin: 0;
-	padding: 0;
-	border: 0;
-	outline: 0;
-	font-size: 100%;
-	font: inherit;
-	vertical-align: baseline;
-}
-/* HTML5 display-role reset for older browsers */
-article, aside, details, figcaption, figure, 
-footer, header, hgroup, menu, nav, section {
-	display: block;
-}
-body {
-	line-height: 1;
-}
-ol, ul {
-	list-style: none;
-}
-blockquote, q {
-	quotes: none;
-}
-blockquote:before, blockquote:after,
-q:before, q:after {
-	content: '';
-	content: none;
-}
-ins {
-	text-decoration: none;
-}
-del {
-	text-decoration: line-through;
-}
+    html, body, div, span, applet, object, iframe,
+    h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+    a, abbr, acronym, address, big, cite, code,
+    del, dfn, em, img, ins, kbd, q, s, samp,
+    small, strike, strong, sub, sup, tt, var,
+    b, u, i, center,
+    dl, dt, dd, ol, ul, li,
+    fieldset, form, label, legend,
+    table, caption, tbody, tfoot, thead, tr, th, td,
+    article, aside, canvas, details, figcaption, figure,
+    footer, header, hgroup, menu, nav, section, summary,
+    time, mark, audio, video {
+    	margin: 0;
+    	padding: 0;
+    	border: 0;
+    	outline: 0;
+    	font-size: 100%;
+    	font: inherit;
+    	vertical-align: baseline;
+    }
+    /* HTML5 display-role reset for older browsers */
+    article, aside, details, figcaption, figure,
+    footer, header, hgroup, menu, nav, section {
+    	display: block;
+    }
+    body {
+    	line-height: 1;
+    }
+    ol, ul {
+    	list-style: none;
+    }
+    blockquote, q {
+    	quotes: none;
+    }
+    blockquote:before, blockquote:after,
+    q:before, q:after {
+    	content: '';
+    	content: none;
+    }
+    ins {
+    	text-decoration: none;
+    }
+    del {
+    	text-decoration: line-through;
+    }
 
-table {
-	border-collapse: collapse;
-	border-spacing: 0;
-}
+    table {
+    	border-collapse: collapse;
+    	border-spacing: 0;
+    }
 
-html, body, #app {
-    height: 100%;
-}"]
+    html, body, #app {
+        height: 100%;
+    }"
+    ];end [style
     [:title title]
-    [:script
-     (format
-      "   window.fbAsyncInit = function() {
-	  FB.init({
-	  appId      : '%s',
-	  xfbml      : true,
-          cookie     : true,
-	  version    : 'v2.9'
-	  });
-	  FB.AppEvents.logPageView();
-	  };
-
-	  (function(d, s, id){
-	  var js, fjs = d.getElementsByTagName(s)[0];
-	  if (d.getElementById(id)) {return;}
-	  js = d.createElement(s); js.id = id;
-	  js.src = \"//connect.facebook.net/en_US/sdk.js\";
-	  fjs.parentNode.insertBefore(js, fjs);
-	  }(document, 'script', 'facebook-jssdk'));"
-      (oauth/app-id url))]]
+;;TODO FB removal ;TK
+;    [:script
+;     (format
+;      "   window.fbAsyncInit = function() {;
+;	    FB.init({
+;	    appId      : '%s',
+;  	  xfbml      : true,
+;            cookie     : true,
+;  	  version    : 'v2.9'
+;  	  });
+;  	  FB.AppEvents.logPageView();
+;  	  };
+;
+;  	  (function(d, s, id){
+;  	  var js, fjs = d.getElementsByTagName(s)[0];
+;  	  if (d.getElementById(id)) {return;}
+;  	  js = d.createElement(s); js.id = id;
+;  	  js.src = \"//connect.facebook.net/en_US/sdk.js\";
+;  	  fjs.parentNode.insertBefore(js, fjs);
+;  	  }(document, 'script', 'facebook-jssdk'));"
+;      (oauth/app-id url)
+;    )]
+   ] ;;END [head
    [:body {:style "margin:0;height:100%;line-height:1"}
     [:div#app
      (if splash?

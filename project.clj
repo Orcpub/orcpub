@@ -24,7 +24,8 @@
                  [org.clojure/core.async "0.4.490"]
                  [cljsjs/react "16.6.0-0"]
                  [cljsjs/react-dom "16.6.0-0"]
-                 [cljsjs/facebook "v20150729-0"]
+; TODO Permanently remove? ;TK
+;                 [cljsjs/facebook "v20150729-0"]
                  [cljsjs/google-platformjs-extern "1.0.0-0"]
                  [cljsjs/filesaverjs "1.3.3-0"]
                  [com.cognitect/transit-cljs "0.8.256"]
@@ -79,7 +80,10 @@
 
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
 
-  :resource-paths ["resources" "resources/.ebextensions/*.config"]
+; TODO remove completely?
+; Unneededed without AWS? ;TK
+;  :resource-paths ["resources" "resources/.ebextensions/*.config"]
+;  :resource-paths ["resources" "resources/.ebextensions/"]
 
   :uberjar-name "orcpub.jar"
 
@@ -110,7 +114,8 @@
                                ;; in the default browser once Figwheel has
                                ;; started and complied your application.
                                ;; Comment this out once it no longer serves you.
-                               :open-urls ["http://localhost:8890/index.html"]}
+                               ;:open-urls ["http://localhost:8890/index.html"]}
+                               :open-urls ["http://localhost:3449/index.html"]} ;reverted back b/c active team cannot get 8890 to work properly ;TK
 
                 :compiler     {:main                 orcpub.core
                                :asset-path           "/js/compiled/out"
@@ -156,11 +161,11 @@
              }
 
   :repl-options {
-             ;; If nREPL takes too long to load it may timeout,
-             ;; increase this to wait longer before timing out.
-             ;; Defaults to 30000 (30 seconds)
-             :timeout 300000 ; 5 mins to wait
-			 }
+                 ;; If nREPL takes too long to load it may timeout,
+                 ;; increase this to wait longer before timing out.
+                 ;; Defaults to 30000 (30 seconds)
+                 :timeout 300000 ; 5 mins to wait
+                 }
 
   ;; setting up nREPL for Figwheel and ClojureScript dev
   ;; Please see:

@@ -92,7 +92,8 @@
 (def re-verify-route :re-verify)
 (def verify-sent-route :verify-sent)
 (def login-route :login)
-(def fb-login-route :fb-login)
+;;TODO FB removal ;TK
+;(def fb-login-route :fb-login)
 (def google-login-route :google-login)
 (def login-page-route :login-page)
 (def follow-user-route :follow-user)
@@ -121,10 +122,11 @@
                   "re-verify" re-verify-route
                   "register" register-route
                   "login" login-route
-                  "fb-login" fb-login-route
+                  ;;TODO FB removal ;TK
+                  ;"fb-login" fb-login-route
                   "google-login" google-login-route
                   "user" user-route
-                  
+
                   "character.pdf" character-pdf-route
                   "check-email" check-email-route
                   "check-username" check-username-route
@@ -141,7 +143,7 @@
                   "cookies-policy" cookies-policy-route
 
                   "following/users" {["/" :user] follow-user-route}
-                  
+
                   "dnd/"
                   {"5e/" {"characters" {"" dnd-e5-char-list-route
                                         ["/" :id] dnd-e5-char-route}
