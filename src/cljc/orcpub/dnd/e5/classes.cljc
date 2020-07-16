@@ -28,6 +28,8 @@
 
 (spec/def ::homebrew-boon (spec/keys :req-un [::name ::key ::option-pack]))
 
+(spec/def ::homebrew-metamagic (spec/keys :req-un [::name ::key ::option-pack]))
+
 (defn class-level [levels class-kw]
   (get-in levels [class-kw :class-level]))
 
@@ -2138,14 +2140,24 @@
                               :page 98
                               :summary "creatures have disadvantage on saves against your spells (only on the turn you cast them) if you are hidden from them"}]}]}))
 
-(defn metamagic-selection [num]
+(defn metamagic-selection [num plugin-metamagic]
   (t/selection-cfg
    {:name "Metamagic"
     :tags #{:class}
     :min num
     :max num
     :ref [:class :sorcerer :metamagic]
-    :options [(t/option-cfg
+    :options (concat
+               (map
+                (fn [{:keys [name description edit-event]}]
+                  (t/option-cfg
+                   {:name name
+                    :modifiers [(mod5e/trait-cfg
+                                 {:name name
+                                  :description description})]
+                    :edit-event edit-event}))
+                plugin-metamagic)
+               [(t/option-cfg
                {:name "Careful Spell"
                 :modifiers [(mod5e/dependent-trait
                              {:name "Careful Spell"
@@ -2193,9 +2205,9 @@
                 :modifiers [(mod5e/trait-cfg
                              {:name "Twinned Spell"
                               :page 102
-                              :summary "spend X sorcery pts. (min 1) to target two creatures with a single target spell, where X is the spell level"})]})]}))
+                              :summary "spend X sorcery pts. (min 1) to target two creatures with a single target spell, where X is the spell level"})]})])}))
 
-(defn sorcerer-option [spells spells-map plugin-subclasses-map language-map weapon-map]
+(defn sorcerer-option [spells spells-map plugin-subclasses-map language-map weapon-map metamagic]
   (opt5e/class-option
    spells
    spells-map
@@ -2243,9 +2255,9 @@
                               :level 2
                               :page 101
                               :summary "you can convert sorcery points into spell slots (level - point cost: 1st - 2, 2nd - 3, 3rd - 5, 4th - 6, 5th - 7). You can also convert spell slots into sorcery points equal to the slot's level"})]}
-             3 {:selections [(metamagic-selection 2)]}
-             10 {:selections [(metamagic-selection 1)]}
-             17 {:selections [(metamagic-selection 1)]}}
+             3 {:selections [(metamagic-selection 2 metamagic)]}
+             10 {:selections [(metamagic-selection 1 metamagic)]}
+             17 {:selections [(metamagic-selection 1 metamagic)]}}
     :equipment-choices [{:name "Equipment Pack"
                          :options {:dungeoneers-pack 1
                                    :explorers-pack 1}}

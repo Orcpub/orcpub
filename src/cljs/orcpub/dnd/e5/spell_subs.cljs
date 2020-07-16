@@ -432,6 +432,12 @@
    (apply concat (map (comp vals ::e5/feats) plugins))))
 
 (reg-sub
+ ::classes5e/plugin-metamagic
+ :<- [::e5/plugin-vals]
+ (fn [plugins _]
+   (apply concat (map (comp vals ::e5/metamagic) plugins))))
+
+(reg-sub
  ::classes5e/plugin-invocations
  :<- [::e5/plugin-vals]
  (fn [plugins _]
@@ -860,7 +866,7 @@
         tiefling-option-cfg]))))))
 
 
-(defn base-class-options [spell-lists spells-map plugin-subclasses-map language-map weapons-map invocations boons]
+(defn base-class-options [spell-lists spells-map plugin-subclasses-map language-map weapons-map invocations boons metamagic]
   [(classes5e/barbarian-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
    (classes5e/bard-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
    (classes5e/cleric-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
@@ -870,7 +876,7 @@
    (classes5e/paladin-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
    (classes5e/ranger-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
    (classes5e/rogue-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
-   (classes5e/sorcerer-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)
+   (classes5e/sorcerer-option spell-lists spells-map plugin-subclasses-map language-map weapons-map metamagic)
    (classes5e/warlock-option spell-lists spells-map plugin-subclasses-map language-map  weapons-map invocations boons)
    (classes5e/wizard-option spell-lists spells-map plugin-subclasses-map language-map weapons-map)])
 
@@ -881,10 +887,11 @@
  :<- [::classes5e/plugin-subclasses-map]
  :<- [::langs5e/language-map]
  :<- [::classes5e/plugin-classes]
+ :<- [::classes5e/metamagic]
  :<- [::classes5e/invocations]
  :<- [::classes5e/boons]
  :<- [::mi5e/custom-and-standard-weapons-map]
- (fn [[spell-lists spells-map plugin-subclasses-map language-map plugin-classes invocations boons weapons-map] _]
+ (fn [[spell-lists spells-map plugin-subclasses-map language-map plugin-classes metamagic invocations boons weapons-map] _]
    (vec
     (into
      (sorted-set-by #(compare (::t/key %1) (::t/key %2)))
@@ -900,7 +907,7 @@
            weapons-map
            plugin-class))
         plugin-classes))
-      (base-class-options spell-lists spells-map plugin-subclasses-map language-map weapons-map invocations boons))))))
+      (base-class-options spell-lists spells-map plugin-subclasses-map language-map weapons-map invocations boons metamagic))))))
 
 (reg-sub
  ::classes5e/class-map
@@ -934,6 +941,15 @@
     (fn [feat]
       (assoc feat :edit-event [::feats5e/edit-feat feat]))
     plugin-feats)))
+
+(reg-sub
+ ::classes5e/metamagic
+ :<- [::classes5e/plugin-metamagic]
+ (fn [plugin-metamagic]
+   (map
+    (fn [metamagic]
+      (assoc metamagic :edit-event [::classes5e/edit-metamagic metamagic]))
+    plugin-metamagic)))
 
 (reg-sub
  ::classes5e/invocations
@@ -1226,6 +1242,11 @@
  ::classes5e/subclass-builder-item
  (fn [db _]
    (::classes5e/subclass-builder-item db)))
+
+(reg-sub
+ ::classes5e/metamagic-builder-item
+ (fn [db _]
+   (::classes5e/metamagic-builder-item db)))
 
 (reg-sub
  ::classes5e/invocation-builder-item

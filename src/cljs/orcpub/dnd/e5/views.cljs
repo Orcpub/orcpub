@@ -484,6 +484,8 @@
            :route routes/dnd-e5-class-builder-page-route}
           {:name "Subclass Builder"
            :route routes/dnd-e5-subclass-builder-page-route}
+          {:name "Metamagic Builder"
+           :route routes/dnd-e5-metamagic-builder-page-route}
           {:name "Eldritch Invocation Builder"
            :route routes/dnd-e5-invocation-builder-page-route}
           {:name "Pact Boon Builder"
@@ -4002,6 +4004,9 @@
 (defn language-input-field [title prop language & [class-names]]
   (builder-input-field title prop language ::langs/set-language-prop class-names))
 
+(defn metamagic-input-field [title prop metamagic & [class-names]]
+  (builder-input-field title prop metamagic ::classes/set-metamagic-prop class-names))
+
 (defn invocation-input-field [title prop invocation & [class-names]]
   (builder-input-field title prop invocation ::classes/set-invocation-prop class-names))
 
@@ -6055,6 +6060,27 @@
        {:value (get language :description)
         :on-change #(dispatch [::langs/set-language-prop :description %])}]]]))
 
+(defn metamagic-builder []
+  (let [metamagic @(subscribe [::classes/metamagic-builder-item])]
+    [:div.p-20.main-text-color
+     [:div.flex.w-100-p.flex-wrap
+      [metamagic-input-field
+       "Name"
+       :name
+       metamagic
+       "m-b-20"]
+      [metamagic-input-field
+       option-source-name-label
+       :option-pack
+       metamagic
+       "m-l-5 m-b-20"]]
+     [:div.w-100-p
+      [:div.f-s-24.f-w-b
+       "Description"]
+      [textarea-field
+       {:value (get metamagic :description)
+        :on-change #(dispatch [::classes/set-metamagic-prop :description %])}]]]))
+
 (defn boon-builder []
   (let [boon @(subscribe [::classes/boon-builder-item])]
     [:div.p-20.main-text-color
@@ -7147,6 +7173,17 @@
    ::classes/delete-subclass
    "subclasses"])
 
+(defn my-metamagic [name plugin]
+  [my-content-type
+   name
+   plugin
+   "metamagic"
+   ::e5/metamagic
+   "magic-swirl"
+   ::classes/new-metamagic
+   ::classes/edit-metamagic
+   ::classes/delete-metamagic])
+
 (defn my-invocations [name plugin]
   [my-content-type
    name
@@ -7226,6 +7263,7 @@
            [my-subraces name plugin]
            [my-classes name plugin]
            [my-subclasses name plugin]
+           [my-metamagic name plugin]
            [my-invocations name plugin]
            [my-boons name plugin]
            [my-feats name plugin]
@@ -7352,6 +7390,9 @@
 
 (defn language-builder-page []
   (builder-page "Language" ::langs/reset-language ::langs/save-language language-builder))
+
+(defn metamagic-builder-page []
+  (builder-page "Metamagic" ::classes/reset-metamagic ::classes/save-metamagic metamagic-builder))
 
 (defn invocation-builder-page []
   (builder-page "Eldritch Invocation" ::classes/reset-invocation ::classes/save-invocation invocation-builder))
