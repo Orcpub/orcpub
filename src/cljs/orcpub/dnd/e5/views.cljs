@@ -7581,7 +7581,7 @@
                          "cancel"]]]
                       [:div.flex.align-items-c
                        [:span.m-l-5 name]
-                       [:i.fa.fa-pencil.m-l-10.opacity-5.hover-opacity-full.pointer
+                       [:i.fa.fa-pencil-alt.m-l-10.opacity-5.hover-opacity-full.pointer
                         {:on-click #(swap! editing-parties assoc id name)}]])]]
                   [:div.item-list
                    (doall
