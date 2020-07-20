@@ -987,7 +987,7 @@
        ^:interceptors [(body-params/body-params) service-error-handler]
        ["/js/*" {:get `get-js}]
        ["/css/*" {:get `get-css}]
-       ["/font-awesome-4.7.0/*" {:get `get-fa}]
+       ["/font-awesome-5.14.0/*" {:get `get-fa}]
        ["/image/*" {:get `get-image}]
        ["/favicon/*" {:get `get-favicon}]
        [(route-map/path-for route-map/register-route)

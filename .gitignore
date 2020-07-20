@@ -1,6 +1,6 @@
 .editorconfig
 .gitattributes
-
+.clj-kondo
 /resources/public/css/compiled
 /resources/public/js/compiled
 /resources/*_backup.pdf

@@ -294,7 +294,7 @@
   [:a.p-5.opacity-5.hover-opacity-full.main-text-color
    {:style social-icon-style
     :href link :target :_blank}
-   [:i.fa
+   [:i.fab
     {:class-name (str "fa-" icon)}]])
 
 (def search-input-style
@@ -393,7 +393,7 @@
                      "https://c5.patreon.com/external/logo/become_a_patron_button.png")}]]
            (if (not mobile?)
              [:div.main-text-color.p-10
-              (social-icon "facebook" "https://www.facebook.com/groups/252484128656613/")
+              (social-icon "facebook-f" "https://www.facebook.com/groups/252484128656613/")
               (social-icon "twitter" "https://twitter.com/thDMV")
               (social-icon "reddit-alien" "https://www.reddit.com/r/dungeonmastersvault/")])]
           [:div.flex.m-b-5.m-t-5.justify-cont-s-b.app-header-menu
