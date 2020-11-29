@@ -5441,10 +5441,11 @@
            :on-change #(dispatch [::classes/set-class-prop
                                   :spellcasting
                                   (if (= "true" %)
-                                    {:level-factor 3
+                                    {:level-factor 1
+                                     :slot-factor 1
                                      :known-mode :schedule
                                      :ability ::char/cha
-                                     :spells-known classes/third-caster-spells-known-schedule})])}]
+                                     :spells-known classes/full-caster-spells-known-schedule})])}]
          (if spellcaster?
            [:div.m-l-5
             [labeled-dropdown
@@ -5478,17 +5479,28 @@
            [:div.m-l-5
             [labeled-dropdown
              "At what level does this class first gain spell slots?"
-             {:items (map
-                      value-to-item
-                      (range 1 4))
-              :value (get-in class [:spellcasting :level-factor] 1)
-              :on-change #(let [level-factor (js/parseInt %)]
+             {:items [{:title "1 - Full Caster"
+                       :value 1}
+                      {:title "2 - Half Caster"
+                       :value 2}
+                      {:title "3 - Third Caster"
+                       :value 3}
+                      {:title "2 - Artificer"
+                       :value 4}]
+              :value (get-in class [:spellcasting :slot-factor] 1)
+              :on-change #(let [slot-factor (js/parseInt %)]
                             (dispatch [::classes/set-class-path-prop
-                                       [:spellcasting :level-factor] level-factor
-                                       [:spellcasting :spells-known] (case level-factor
+                                       [:spellcasting :slot-factor]  slot-factor
+                                       [:spellcasting :spells-known] (case slot-factor
                                                                        1 classes/full-caster-spells-known-schedule
                                                                        2 classes/half-caster-spells-known-schedule
-                                                                       3 classes/third-caster-spells-known-schedule)]))}]])]
+                                                                       3 classes/third-caster-spells-known-schedule
+                                                                       4 classes/artificer-spells-known-schedule)
+                                       [:spellcasting :level-factor] (case slot-factor
+                                                                       1 1
+                                                                       2 2
+                                                                       3 3
+                                                                       4 2)]))}]])]
         (if (and spellcaster?
                  (not (get-in class [:spellcasting :spell-list-kw])))
           (let [cantrips? (get-in class [:spellcasting :cantrips?])]

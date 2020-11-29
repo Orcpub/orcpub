@@ -2501,10 +2501,11 @@
 (reg-event-db
  ::class5e/set-class-path-prop
  class-interceptors
- (fn [class [_ prop-path prop-value prop-path-2 prop-value-2]]
+ (fn [class [_ prop-path-1 prop-value-1 prop-path-2 prop-value-2 prop-path-3 prop-value-3]]
    (-> class
-       (assoc-in prop-path prop-value)
-       (assoc-in prop-path-2 prop-value-2))))
+       (assoc-in prop-path-1 prop-value-1)
+       (assoc-in prop-path-2 prop-value-2)
+       (assoc-in prop-path-3 prop-value-3))))
 
 (reg-event-db
  ::selections5e/set-selection-path-prop
