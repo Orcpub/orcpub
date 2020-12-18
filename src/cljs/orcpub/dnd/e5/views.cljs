@@ -4581,7 +4581,7 @@
             (= num (get-in feat [:props kw]))
             false
             #(dispatch [::feats/toggle-feat-value-prop kw num])])])
-      (range 3 5)))]])
+      (range 1 5)))]])
 
 (defn option-armor-proficiency [option toggle-map-prop-event]
   [:div.m-b-20
