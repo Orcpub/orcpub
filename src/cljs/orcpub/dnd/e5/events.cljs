@@ -2686,6 +2686,15 @@
                            (assoc m key num))))))
 
 (reg-event-db
+ ::bg5e/toggle-feature-value-prop
+ background-interceptors
+ (fn [background [_ key num]]
+   (update background :props (fn [m]
+                         (if (= (get m key) num)
+                           (dissoc m key)
+                           (assoc m key num))))))
+
+(reg-event-db
  ::race5e/toggle-race-prop
  race-interceptors
  (fn [race [_ key]]
@@ -3534,6 +3543,28 @@
  race-interceptors
  (fn [race [_ index]]
    (update race :spells common/remove-at-index index)))
+
+(reg-event-db
+ ::feats5e/set-feat-spell-level
+ feat-interceptors
+ (fn [feat [_ index level]]
+   (cond-> feat
+     (nil? (:spells feat)) (assoc :spells [])
+     true (assoc-in [:spells index :level] level))))
+
+(reg-event-db
+ ::feats5e/set-feat-spell-value
+ feat-interceptors
+ (fn [feat [_ index value]]
+   (cond-> feat
+     (nil? (:spells feat)) (assoc :spells [])
+     true (assoc-in [:spells index :value] value))))
+
+(reg-event-db
+ ::feats5e/delete-feat-spell
+ feat-interceptors
+ (fn [feat [_ index]]
+   (update feat :spells common/remove-at-index index)))
 
 (defn reg-option-traits [option-name option-key interceptors]
   (reg-event-db
