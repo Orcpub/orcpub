@@ -40,7 +40,6 @@
             [orcpub.template :as template]
             [orcpub.dnd.e5.options :as opt]
             [orcpub.dnd.e5.events :as events]
-            [orcpub.ver :as v]
             [clojure.string :as s]
             [cljs.reader :as reader]
             [orcpub.user-agent :as user-agent]
@@ -115,6 +114,7 @@
        (if @blurred? (validation-messages messages))])))
 
 (defn export-pdf [built-char id & [options]]
+  (prn (str options))
   (fn [_]
     (let [field (.getElementById js/document "fields-input")]
       (aset field "value" (str (pdf-spec/make-spec built-char id options)))
@@ -1225,10 +1225,9 @@
                                       (let [mean
                                             (or mean
                                                 (if (and die die-count)
-                                                  (dice/dice-mean-round-down
-                                                   die-count
-                                                   die
-                                                   (or modifier 0))))]
+                                                  (dice/dice-mean die
+                                                                  die-count
+                                                                  (or modifier 0))))]
                                         (if mean (str " (" mean ")"))))))
      (spell-field "Speed" speed)
      [:div.m-t-10.flex.justify-cont-s-a.m-b-10
@@ -1397,8 +1396,7 @@
     (r/create-class
      {:component-did-mount (fn [comp]
                              (when-not frame?
-                               (js/window.addEventListener "scroll" on-scroll))
-                             (js/window.scrollTo 0,0))
+                               (js/window.addEventListener "scroll" on-scroll)))
       :component-will-unmount (fn [comp]
                                 (when-not frame?
                                   (js/window.removeEventListener "scroll" on-scroll)))
@@ -1455,8 +1453,7 @@
                   [:a.orange.m-l-5 {:href "/terms-of-use" :target :_blank} "Terms of Use"]]
                  [:div.legal-footer
                   [:p "© 2020 " [:a.orange {:href "https://github.com/Orcpub/orcpub/" :target :_blank} "Orcpub"]]
-                  [:p "Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries. © 2020 Wizards. All Rights Reserved. OrcPub.com is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC."]
-                  [:p "Version " (v/version) " (" (v/date) ")"]]]
+                  [:p "Wizards of the Coast, Dungeons & Dragons, D&D, and their logos are trademarks of Wizards of the Coast LLC in the United States and other countries. © 2020 Wizards. All Rights Reserved. OrcPub.com is not affiliated with, endorsed, sponsored, or specifically approved by Wizards of the Coast LLC."]]]
                 [debug-data]]]])]))})))
 
 (def row-style
@@ -1495,41 +1492,22 @@
                                    ::char/image-url
                                    ::char/race-name
                                    ::char/subrace-name
-                                   ::char/age
-                                   ::char/sex
-                                   ::char/height
-                                   ::char/weight
-                                   ::char/hair
-                                   ::char/eyes
-                                   ::char/skin
-                                   ::char/classes
-                                   ::char/alignment
-                                   ::char/background]}
+                                   ::char/classes]}
                            include-name?
                            owner
                            show-owner?
                            show-follow?]
   (let [username @(subscribe [:username])]
     [:div.flex.justify-cont-s-b.w-100-p.align-items-c
-     [:div.flex.align-items-c.align-items-t
+     [:div.flex.align-items-c
       (if image-url
         [:img.m-r-20.m-t-10.m-b-10 {:src image-url
                                     :style thumbnail-style}])
       [:div.flex.character-summary.m-t-20.m-b-20
-       (if (and character-name include-name?) [:span.m-r-20.m-b-5
-                                               [:span.character-name character-name]
-                                               [:div.f-s-12.m-t-5.opacity-6.character-background background]
-                                               [:div.f-s-12.m-t-5.opacity-6.character-alignment alignment]
-                                               (when (not (s/blank? age)) [:div.f-s-12.m-t-5.opacity-6.character-age "Age: " age])
-                                               (when (not (s/blank? sex)) [:div.f-s-12.m-t-5.opacity-6.character-sex "Sex: " sex])
-                                               (when (not (s/blank? height)) [:div.f-s-12.m-t-5.opacity-6.character-height "Height: " height])
-                                               (when (not (s/blank? weight)) [:div.f-s-12.m-t-5.opacity-6.character-weight "Weight: " weight])])
+       (if (and character-name include-name?) [:span.m-r-20.m-b-5.character-name character-name])
        [:span.m-r-10.m-b-5
         [:span.character-race-name race-name]
-        [:div.f-s-12.m-t-5.opacity-6.character-subrace-name subrace-name]
-        (when (not (s/blank? hair)) [:div.f-s-12.m-t-5.opacity-6.character-hair "Hair: " hair])
-        (when (not (s/blank? eyes)) [:div.f-s-12.m-t-5.opacity-6.character-eyes "Eyes: " eyes])
-        (when (not (s/blank? skin)) [:div.f-s-12.m-t-5.opacity-6.character-skin "Skin: " skin])]
+        [:div.f-s-12.m-t-5.opacity-6.character-subrace-name subrace-name]]
        (if (seq classes)
          [:span.flex
           (map-indexed
@@ -1551,35 +1529,17 @@
 
 (defn character-summary [id & [include-name?]]
   (let [character-name @(subscribe [::char/character-name id])
-        age @(subscribe [::char/age id])
-        sex @(subscribe [::char/sex id])
-        height @(subscribe [::char/height id])
-        weight @(subscribe [::char/weight id])
-        hair @(subscribe [::char/hair id])
-        eyes @(subscribe [::char/eyes id])
-        skin @(subscribe [::char/skin id])
         image-url @(subscribe [::char/image-url id])
         race @(subscribe [::char/race id])
         subrace @(subscribe [::char/subrace id])
         levels @(subscribe [::char/levels id])
         classes @(subscribe [::char/classes id])
-        alignment  @(subscribe [::char/alignment id])
-        background  @(subscribe [::char/background id])
         {:keys [::se/owner] :as strict-character} @(subscribe [::char/character id])]
     (character-summary-2
      {::char/character-name character-name
-      ::char/age age
-      ::char/sex sex
-      ::char/height height
-      ::char/weight weight
-      ::char/hair hair
-      ::char/eyes eyes
-      ::char/skin skin
       ::char/image-url image-url
       ::char/race-name race
       ::char/subrace-name subrace
-      ::char/alignment alignment
-      ::char/background background
       ::char/classes (map
                       (fn [class-kw]
                         (let [{:keys [class-name class-level subclass-name] :as cfg}
@@ -1814,13 +1774,10 @@
 
 (def button-roll-handler (memoize button-roll-fn))
 
-(defn roll-button [message roll & {:keys [text disable-tooltip style]}]
+(defn roll-button [message roll & {:keys [text disable-tooltip]}]
   (let [mobile? @(subscribe [:mobile?])
         button [:button.roll-button
-                {:on-click (fn [e]
-                             (.stopPropagation e)
-                             ((button-roll-handler message roll) e))
-                 :style style}
+                {:on-click (button-roll-handler message roll)}
                 (or text "Roll")]]
     (if (or mobile? disable-tooltip)
       button
@@ -1865,7 +1822,7 @@
                            prepared-spell-count)]
     [[:tr.spell.pointer
       {:on-click on-click}
-      [:td.p-l-10.p-b-5.p-t-5.f-w-b
+      [:td.p-l-10.p-b-10.p-t-10.f-w-b
        (if (and (pos? lvl)
                 (get prepares-spells class))
          [:span.m-r-5
@@ -1883,23 +1840,23 @@
                   (or always-prepared?
                       (not (pos? remaining-preps))))))])
        (:name spell)]
-      [:td.p-l-10.p-b-5.p-t-5 class]
-      [:td.p-l-10.p-b-5.p-t-5 (if ability (s/upper-case (common/safe-name ability)))]
-      [:td.p-l-10.p-b-5.p-t-5 (get cls-mods :spell-save-dc)]
-      [:td.p-l-10.p-b-5.p-t-5 (common/bonus-str (get cls-mods :spell-attack-modifier))]
-      [:td.p-l-10.p-b-5.p-t-5
-       (roll-button
-        (str (:name spell) " attack: ")
-        (str "1d20" (common/mod-str (get cls-mods :spell-attack-modifier)))
-        :text (str "1d20" (common/mod-str (get cls-mods :spell-attack-modifier))))]
-      [:td.p-l-10.p-b-5.p-t-5.pointer.orange
+      [:td.p-l-10.p-b-10.p-t-10 class]
+      [:td.p-l-10.p-b-10.p-t-10 (if ability (s/upper-case (common/safe-name ability)))]
+      [:td.p-l-10.p-b-10.p-t-10 (get cls-mods :spell-save-dc)]
+      [:td.p-l-10.p-b-10.p-t-10 (common/bonus-str (get cls-mods :spell-attack-modifier))]
+      [:td.p-l-10.p-b-10.p-t-10 [:div.tooltip [:button.roll-button
+                                               {:on-click (fn [e]
+                                                (.stopPropagation e)
+                                                ((button-roll-handler (str (:name spell) " attack: ") (str "1d20" (common/mod-str (get cls-mods :spell-attack-modifier)))) e))}
+                                               "Roll"] [:span.tooltiptext "ctrl+click for advantage shift+click for disadvantage"]]]
+      [:td.p-l-10.p-b-10.p-t-10.pointer.orange
        [:i.fa
         {:class-name (if expanded? "fa-caret-up" "fa-caret-down")}]]]
-     (when expanded?
+     (if expanded?
        [:tr {:style expanded-spell-background-style}
         [:td {:col-span 7}
          [:div.p-10
-          (when (pos? lvl)
+          (if (pos? lvl)
             [cast-spell-component id lvl])
           [spell-component spell false 14]]]])]))
 
@@ -1927,18 +1884,18 @@
          [:table.w-100-p.t-a-l.striped
           [:tbody.spells
            [:tr.f-w-b.f-s-12
-            [:th.p-l-10.p-b-5.p-t-5 (if (and (not (zero? lvl))
+            [:th.p-l-10.p-b-10.p-t-10 (if (and (not (zero? lvl))
                                                (seq prepares-spells))
                                         "Prepared? / Name"
                                         "Name")]
-            [:th.p-l-10.p-b-5.p-t-5 (if mobile? "Src" "Source")]
-            [:th.p-l-10.p-b-5.p-t-5 (if mobile? "Aby" "Ability")]
-            [:th.p-l-10.p-b-5.p-t-5 "DC"]
+            [:th.p-l-10.p-b-10.p-t-10 (if mobile? "Src" "Source")]
+            [:th.p-l-10.p-b-10.p-t-10 (if mobile? "Aby" "Ability")]
+            [:th.p-l-10.p-b-10.p-t-10 "DC"]
             [:th
              {:class-name (if (not mobile?) "p-b-10 p-t-10")}
              "Mod."]
-            [:th.p-l-10.p-b-5.p-t-5 "Attack"]
-            [:th.p-l-10.p-b-5.p-t-5]]
+            [:th.p-l-10.p-b-10.p-t-10 "Attack"]
+            [:th.p-l-10.p-b-10.p-t-10]]
            (doall
             (map-indexed
              (fn [i r]
@@ -2098,11 +2055,6 @@
   (or (:name weapon)
       (::mi/name weapon)))
 
-(defn weapon-attack-description-short [{:keys [::weapon/ranged?] :as weapon}]
-  (disp/attack-description-short (-> weapon
-                                     (assoc :attack-type (if ranged? :ranged :melee))
-                                     (dissoc :description))))
-
 (defn weapon-attack-description [{:keys [::weapon/ranged?] :as weapon} damage-modifier attack-modifier]
   (disp/attack-description (-> weapon
                                (assoc :attack-type (if ranged? :ranged :melee))
@@ -2237,13 +2189,9 @@
     (section-header-2 title icon)
     [:div.f-s-24.f-w-b
      {:class (csk/->kebab-case title)}
-     (if (boolean show-button)
-       (roll-button
-        (str title " check: ")
-        (str "1d20" v)
-        :text v
-        :style {:font-size "24px" :padding "2px 8px"})
-       v)]]])
+     v]]
+   (if (boolean show-button)
+     [:div.f-s-24.f-w-b (roll-button (str title " check: ") (str "1d20" v))])])
 
 (def current-hit-points-editor-style
   {:width "60px"
@@ -2320,10 +2268,8 @@
              [:td [:div.skill-name
                    (svg-icon icon 18)
                    [:span.m-l-5 skill-name]]]
-             [:td.p-1 (roll-button
-                   (str skill-name " check: ")
-                   (str "1d20" (common/mod-str (skill-bonuses skill-key)))
-                   :text (common/bonus-str (skill-bonuses skill-key)))]])
+             [:td [:div.p-5.skillbonus (common/bonus-str (skill-bonuses skill-key))]]
+             [:td (roll-button (str skill-name " check: ") (str "1d20" (common/mod-str (skill-bonuses skill-key))))]])
           skills/skills))]]]]))
 
 (defn ability-scores-section-2 [id]
@@ -2342,11 +2288,8 @@
            [:div.ability-score-name
             [:span.f-s-20.uppercase (name k)]]
            [:div.f-s-24.f-w-b.ability-score (abilities k)]
-           [:div.f-s-12.opacity-5.m-b-2.m-t-2 " mod"]
-           [:div.f-s-18.ability-score-modifier (roll-button
-                                                (str (clojure.string/upper-case (name k)) " check: ")
-                                                (str "1d20 " (common/mod-str (ability-bonuses k)))
-                                                :text (common/bonus-str (ability-bonuses k)))]])
+           [:div.f-s-12.opacity-5.m-b--2.m-t-2 "mod"]
+           [:div.f-s-18.ability-score-modifier (common/bonus-str (ability-bonuses k))]])
         char/ability-keys))]]))
 
 (defn saving-throws-section-2 [id]
@@ -2366,10 +2309,8 @@
              [:td [:div
                    (t/ability-icon k 18 theme)
                    [:span.m-l-5.saving-throw-name (s/upper-case (name k))]]]
-             [:td.p-1 (roll-button
-                   (str (s/upper-case (name k)) " check: ")
-                   (str "1d20" (common/mod-str (save-bonuses k)))
-                   :text (common/bonus-str (save-bonuses k)))]])
+             [:td [:div.p-5.saving-throw-bonus (common/bonus-str (save-bonuses k))]]
+             [:td (roll-button (str (s/upper-case (name k)) " check: ") (str "1d20" (common/mod-str (save-bonuses k))))]])
          char/ability-keys))]]]))
 
 (defn feet-str [num]
@@ -2613,13 +2554,11 @@
                               ::weapon/damage-type
                               ::mi/magical-damage-bonus
                               ::mi/magical-attack-bonus
-                              ::mi/magical-damage-type
                               ::weapon/ranged?
                               ::weapon/melee?
                               ::weapon/range
                               ::weapon/two-handed?
                               ::weapon/finesse?
-                              ::mi/magical-finesse?
                               ::weapon/link
                               ::weapon/versatile
                               ::weapon/thrown]
@@ -2627,9 +2566,7 @@
                       damage-modifier-fn]
   [:div.m-t-10.i
    (weapon-details-field "Type" (common/safe-name type))
-   (if magical-damage-type
-     (weapon-details-field "Damage Type" (common/safe-name magical-damage-type))
-     (weapon-details-field "Damage Type" (common/safe-name damage-type)))
+   (weapon-details-field "Damage Type" (common/safe-name damage-type))
    (if magical-damage-bonus
      (weapon-details-field "Magical Damage Bonus" magical-damage-bonus))
    (if magical-attack-bonus
@@ -2637,9 +2574,7 @@
    (weapon-details-field "Melee/Ranged" (if melee? "melee" "ranged"))
    (if range
      (weapon-details-field "Range" (str (::weapon/min range) "/" (::weapon/max range) " ft.")))
-   (if magical-finesse?
-     (weapon-details-field "Finesse?" (yes-no magical-finesse?))
-     (weapon-details-field "Finesse?" (yes-no finesse?)))
+   (weapon-details-field "Finesse?" (yes-no finesse?))
    (weapon-details-field "Two-handed?" (yes-no two-handed?))
    (weapon-details-field "Versatile" (if versatile
                                        (str (::weapon/damage-die-count versatile)
@@ -2781,48 +2716,42 @@
              {:class-name (if mobile? "f-s-12")}
              [:th.p-10 "Name"]
              (if (not mobile?) [:th.p-10 "Proficient?"])
-             [:th.p-10 "Details"]
-             [:th.t-a-c (if mobile? "Atk" [:div.w-60 "Attack"])]
-             [:th.t-a-c (if mobile? "Dmg" [:div.w-60 "Damage"])]
+             [:th "Details"]
+             [:th (if mobile? "Atk" [:div.w-40 "Attack Bonus"])]
              [:th.p-10]]
             (doall
              (map
               (fn [[weapon-key {:keys [equipped?]}]]
-                (let [{:keys [name description ranged? ::weapon/type ::weapon/damage-die-count ::weapon/damage-die ::weapon/versatile] :as weapon} (all-weapons-map weapon-key)
+                (let [{:keys [name description ranged? ::weapon/type ::weapon/damage-die-count ::weapon/damage-die] :as weapon} (all-weapons-map weapon-key)
                       proficient? (if has-weapon-prof (has-weapon-prof weapon))
                       expanded? (@expanded-details weapon-key)
                       damage-modifier (weapon-damage-modifier weapon)
-                      versatile-damage-die-count (:orcpub.dnd.e5.weapons/damage-die-count versatile)
-                      versatile-damage-die (:orcpub.dnd.e5.weapons/damage-die versatile)
                       droll (str damage-die-count "d" damage-die)]
-                  (when (not= type :ammunition)
+                  (if (not= type :ammunition)
                     ^{:key weapon-key}
                     [:tr.weapon.pointer
                      {:on-click (toggle-details-expanded-handler expanded-details weapon-key)}
                      [:td.p-10.f-w-b (or (:name weapon)
                                          (::mi/name weapon))]
-                     (when (not mobile?)
+                     (if (not mobile?)
                        [:td.p-10 (boolean-icon proficient?)])
                      [:td.p-10.w-100-p
                       [:div
-                       (weapon-attack-description-short weapon)]
-                      (when expanded?
+                       (weapon-attack-description weapon damage-modifier nil)]
+                      (if expanded?
                         (weapon-details weapon weapon-damage-modifier))]
-                     [:td (roll-button
-                           (str name " attack: ")
-                           (str "1d20" (common/mod-str (weapon-attack-modifier weapon)))
-                           :text (str "1d20" (common/mod-str (weapon-attack-modifier weapon))))]
-                     [:td (roll-button
-                           (str name " damage: ")
-                           (str damage-die-count "d" damage-die (common/mod-str (weapon-damage-modifier weapon)))
-                           :text (str damage-die-count "d" damage-die (common/mod-str (weapon-damage-modifier weapon)))
-                           :style {:width "100%"})
-                      (when versatile
-                        (roll-button
-                         (str name " versatile damage: ")
-                         (str versatile-damage-die-count "d" versatile-damage-die (common/mod-str (weapon-damage-modifier weapon)))
-                         :text (str "v " versatile-damage-die-count "d" versatile-damage-die (common/mod-str (weapon-damage-modifier weapon)))
-                         :style {:width "100%"}))]
+
+                     [:td.p-10.f-w-b.f-s-18 (common/bonus-str (weapon-attack-modifier weapon))]
+                     [:td [:div.tooltip [:button.roll-button
+                                         {:on-click (fn [e]
+                                          (.stopPropagation e)
+                                          ((button-roll-handler (str name " attack: ") (str "1d20" (common/mod-str (weapon-attack-modifier weapon)))) e))}
+                                         "Attack"] [:span.tooltiptext "ctrl+click for advantage shift+click for disadvantage"]]]
+                     [:td [:button.roll-button
+                                         {:on-click (fn [e]
+                                          (.stopPropagation e)
+                                          ((button-roll-handler (str name " damage: ") (str damage-die-count "d" damage-die (common/mod-str (weapon-damage-modifier weapon)))) e))}
+                                         "Damage"]]
                      [:td.pointer
                       [:div.orange
                        #_(if (not mobile?)
@@ -2980,11 +2909,11 @@
            [:tbody
             [:tr.f-w-b
              {:class-name (if mobile? "f-s-12")}
-             [:th.p-5 "Name"]
-             [:th.p-5 (if mobile? "Prof?" "Proficient?")]
+             [:th.p-10 "Name"]
+             [:th.p-10 (if mobile? "Prof?" "Proficient?")]
              (if skill-expertise
-               [:th.p-5 "Expertise?"])
-             [:th.p-5 (if (not mobile?) [:div.w-40 "Bonus"])]]
+               [:th.p-10 "Expertise?"])
+             [:th.p-10 (if (not mobile?) [:div.w-40 "Bonus"])]]
             (doall
              (map
               (fn [{:keys [key name]}]
@@ -2992,14 +2921,12 @@
                       expertise? (key skill-expertise)]
                   ^{:key key}
                   [:tr
-                   [:td.p-5.f-w-b name]
-                   [:td.p-5 (boolean-icon proficient?)]
+                   [:td.p-10.f-w-b name]
+                   [:td.p-10 (boolean-icon proficient?)]
                    (if skill-expertise
-                     [:td.p-5 (boolean-icon expertise?)])
-                   [:td.p-5.f-s-18.f-w-b (roll-button
-                         (str name " check: ")
-                         (str "1d20" (common/mod-str (key skill-bonuses)))
-                         :text (common/bonus-str (key skill-bonuses)))]]))
+                     [:td.p-10 (boolean-icon expertise?)])
+                   [:td.p-10.f-s-18.f-w-b (common/bonus-str (key skill-bonuses))]
+                    [:td (roll-button (str name " check: ") (str "1d20" (common/mod-str (key skill-bonuses))))]]))
               skills/skills))]]]]))))
 
 (defn tool-prof-details-section-2 []
@@ -3476,16 +3403,14 @@
                      print-spell-cards?
                      print-prepared-spells?
                      print-large-abilities?
-                     print-character-sheet-style?
-                     print-spell-card-dc-mod?]
+                     print-character-sheet-style?]
   #(let [export-fn (export-pdf built-char
                                id
                                {:print-character-sheet? print-character-sheet?
                                 :print-spell-cards? print-spell-cards?
                                 :print-prepared-spells? print-prepared-spells?
                                 :print-large-abilities? print-large-abilities?
-                                :print-character-sheet-style? print-character-sheet-style?
-                                :print-spell-card-dc-mod? print-spell-card-dc-mod?})]
+                                :print-character-sheet-style? print-character-sheet-style?})]
      (export-fn)
      (dispatch [::char/hide-options])))
 
@@ -3510,7 +3435,6 @@
         print-prepared-spells? @(subscribe [::char/print-prepared-spells?])
         print-large-abilities? @(subscribe [::char/print-large-abilities?])
         print-character-sheet-style? @(subscribe [::char/print-character-sheet-style?])
-        print-spell-card-dc-mod? @(subscribe [::char/print-spell-card-dc-mod?])
         has-spells? (seq (char/spells-known built-char))
         print-button-enabled (if (or (= print-character-sheet-style? nil)
                                      (= (str print-character-sheet-style?) "NaN"))
@@ -3523,9 +3447,18 @@
         [:div.m-t-10
          [labeled-dropdown
           "Select Character sheet"
+          #_(case print-character-sheet-style?
+            ;nil "Select Character sheet"
+              1 "Original 5e Character sheet"
+              2 "Original 5e Character sheet - optional variant"
+              3 "Icewind Dale"
+			  4 "Cthulhu Mythos Sagas"
+              "Select Character sheet")
           {:items [{:title "Select" :value " "}
                    {:title "Original 5e Character sheet" :value 1}
-                   {:title "Original 5e Character sheet - optional variant" :value 2}]
+                   {:title "Original 5e Character sheet - optional variant" :value 2}
+                   {:title "Icewind Dale" :value 3}
+				   {:title "Cthulhu Mythos Sagas" :value 4}]
            :value print-character-sheet-style?
            :on-change (make-arg-event-handler ::char/set-print-character-sheet-style? js/parseInt)}]]]
        [:div.flex
@@ -3542,14 +3475,6 @@
            [labeled-checkbox
             "Print Spell Cards"
             print-spell-cards?]]]])
-      (if print-spell-cards?
-        [:div.m-b-2
-         [:div.flex
-          [:div
-           {:on-click (make-event-handler ::char/toggle-spell-cards-by-dc-mod)}
-           [labeled-checkbox
-            "Print Spell DC and MOD"
-            print-spell-card-dc-mod?]]]])
       (if has-spells?
         [:div.m-b-10
          [:div.m-b-10
@@ -3576,8 +3501,7 @@
                                       print-spell-cards?
                                       print-prepared-spells?
                                       print-large-abilities?
-                                      print-character-sheet-style?
-                                      print-spell-card-dc-mod?)}
+                                      print-character-sheet-style?)}
        "Print"]]]))
 
 (defn make-print-handler [id built-char]
@@ -7352,23 +7276,8 @@
   [:div.main-text-color
    [:div.flex.justify-cont-end
     [:button.form-button.m-r-10.m-b-10
-     {:on-click (make-event-handler ::char/show-delete-plugin-confirmation)}
-     "Delete All"]
-    [:button.form-button.m-r-10.m-b-10
      {:on-click (make-event-handler ::e5/export-all-plugins)}
      "Export All"]]
-   [:div.flex.justify-cont-end
-    (if @(subscribe [::char/delete-plugin-confirmation-shown?])
-      [:div.p-20.flex.justify-cont-end
-       [:div
-        [:div.m-b-10 "Are you sure you want to delete ALL Option sources?"]
-        [:div.flex
-         [:button.form-button
-          {:on-click (make-event-handler ::char/hide-delete-plugin-confirmation)}
-          "cancel"]
-         [:span.link-button
-          {:on-click (make-event-handler ::char/delete-all-plugins)}
-          "delete"]]]])]
    [:div.item-list
     (let [plugins (sort @(subscribe [::e5/plugins]))]
       (doall
@@ -7534,8 +7443,7 @@
                  {:print-character-sheet? true
                   :print-spell-cards? true
                   :print-prepared-spells? false
-                  :print-character-sheet-style? 1
-                  :print-spell-card-dc-mod? true})}
+                  :print-character-sheet-style? 1})}
      "print"]
     (if (= username owner)
       [:button.form-button.m-l-5
@@ -7804,7 +7712,6 @@
 
 (defn- sort-toggle
   "Resembles an underlined link. Uses the FA arrows to indicate sorting direction.
-
    Should be generalized or moved."
   [label value sort-event sort-criteria sort-direction]
   [:div.orange.pointer.m-r-10
