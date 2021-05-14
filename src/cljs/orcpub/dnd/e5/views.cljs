@@ -3525,7 +3525,9 @@
           "Select Character sheet"
           {:items [{:title "Select" :value " "}
                    {:title "Original 5e Character sheet" :value 1}
-                   {:title "Original 5e Character sheet - optional variant" :value 2}]
+                   {:title "Original 5e Character sheet - optional variant" :value 2}
+                   {:title "Icewind Dale 5e Character sheet" :value 3}
+                   {:title "Peterson Games - Cthulhu Mythos Sagas sheet" :value 4}]
            :value print-character-sheet-style?
            :on-change (make-arg-event-handler ::char/set-print-character-sheet-style? js/parseInt)}]]]
        [:div.flex
