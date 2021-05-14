@@ -3526,7 +3526,8 @@
           {:items [{:title "Select" :value " "}
                    {:title "Original 5e Character sheet" :value 1}
                    {:title "Original 5e Character sheet - optional variant" :value 2}
-				   {:title "Cthulhu Mythos Sagas" :value 3}]
+                   {:title "Icewind Dale 5e Character sheet" :value 3}
+                   {:title "Petersen Games - Cthulhu Mythos Sagas sheet" :value 4}]
            :value print-character-sheet-style?
            :on-change (make-arg-event-handler ::char/set-print-character-sheet-style? js/parseInt)}]]]
        [:div.flex
@@ -7805,6 +7806,7 @@
 
 (defn- sort-toggle
   "Resembles an underlined link. Uses the FA arrows to indicate sorting direction.
+
    Should be generalized or moved."
   [label value sort-event sort-criteria sort-direction]
   [:div.orange.pointer.m-r-10
