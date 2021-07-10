@@ -1,4 +1,4 @@
-# Dungeon Master's Vault - Community Edition
+# Dungeon Master's Vault - Community Edition 
 <div align="center">
     <br>
     <img src=".github/screenshot.png" alt="DMV" width="300">
