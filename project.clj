@@ -37,7 +37,7 @@
                  [re-frame "0.10.9"]
                  [reagent "0.7.0"]
                  [garden "1.3.2"]
-                 [org.apache.pdfbox/pdfbox "2.1.0-20170324.170253-831"]
+                 [org.apache.pdfbox/pdfbox "2.0.25"]
                  [io.pedestal/pedestal.service "0.5.1"]
                  [io.pedestal/pedestal.route "0.5.1"]
                  [io.pedestal/pedestal.jetty "0.5.1"]
