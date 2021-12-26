@@ -32,7 +32,7 @@
   (let [catalog (.getDocumentCatalog doc)
         form (.getAcroForm catalog)
         res (or (.getDefaultResources form) (PDResources.))]
-    (.setNeedAppearances form true)
+    (.setNeedAppearances form false)
     (.setDefaultResources form res)
     (doseq [[k v] fields]
       (try
