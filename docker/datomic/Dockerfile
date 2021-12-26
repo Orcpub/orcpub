@@ -3,10 +3,9 @@ MAINTAINER daemonsthere@gmail.com
 
 ENV DATOMIC_VERSION 0.9.5703
 
-RUN wget https://my.datomic.com/downloads/free/${DATOMIC_VERSION} -qO /tmp/datomic.zip \
-  && unzip /tmp/datomic.zip \
-  && rm /tmp/datomic.zip \
-  && mv /datomic-free-${DATOMIC_VERSION} /datomic
+ADD /deploy/datomic-free-${DATOMIC_VERSION} /
+
+RUN mv /datomic-free-${DATOMIC_VERSION} datomic
 
 WORKDIR /datomic
 
