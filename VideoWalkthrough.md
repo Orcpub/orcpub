@@ -29,9 +29,6 @@ This is the code forked from OrcPub2, from the [original](https://github.com/lar
 ## About
 Dungeon Master's Vault is a web server that allows you to host your own Character Generator website for D&D 5th Edition.
 
-## Do you have a video walkthrough of this?
-For the TL;DR (Too Long, Didn't Read) we have a abbreviated walkthrough with screenshots that will take you through the bare steps required to run Dungeon Master's Vault locally. 
-This link can be found here: [Page with Video Walkthrough here](https://github.com/Orcpub/orcpub/Basic_Setup_withVideo.htm)
 
 ## Getting Started
 
