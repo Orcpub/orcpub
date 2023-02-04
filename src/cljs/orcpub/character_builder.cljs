@@ -1741,7 +1741,8 @@
 
 (def image-style
   {:max-height "100px"
-   :max-width "200px"})
+   :max-width "200px"
+   :border-radius "5px"})
 
 (defn set-random-name []
   (dispatch [::char5e/set-random-name]))
