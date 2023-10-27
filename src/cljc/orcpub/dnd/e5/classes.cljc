@@ -2414,7 +2414,7 @@
                            {:level 2
                             :name "Sculpt Spells"
                             :page 117
-                            :summary "can choose up to 1 + spell's level creatures to automatically save against your evocation spells and take no damage"}
+                            :summary "can choose up to 1 + spell's level creatures (other than self) to automatically save against your evocation spells and take no damage"}
                            {:level 6
                             :name "Potent Cantrip"
                             :page 117
