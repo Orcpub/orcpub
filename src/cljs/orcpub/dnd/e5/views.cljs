@@ -4258,24 +4258,25 @@
                                  option
                                  set-path-prop-event
                                  toggle-path-prop-event]
+  (dispatch [set-path-prop-event [:profs proficiency-choice-key :choose] (get-in option [:profs proficiency-choice-key :choose] 0)]) ;; set the default value
   [:div.m-b-20
-   [:div.f-s-24.f-w-b.m-b-20 title]
-   [:div.m-b-10
+    [:div.f-s-24.f-w-b.m-b-20 title]
+    [:div.m-b-10
     [labeled-dropdown
-     "Choose"
-     {:items (map
+      "Choose"
+      {:items (map
               value-to-item
-              (range 1 6))
+              (range 0 6))
       :value (get-in option [:profs proficiency-choice-key :choose] 1)
       :on-change #(dispatch [set-path-prop-event [:profs proficiency-choice-key :choose] (js/parseInt %)])}]]
-   [:div.f-s-18.f-w-b.m-b-20 "Options"]
-   [:div.flex.flex-wrap
+    [:div.f-s-18.f-w-b.m-b-20 "Options"]
+    [:div.flex.flex-wrap
     (doall
-     (map
+      (map
       (fn [{:keys [name key]}]
         ^{:key key}
         [:span.m-r-20.m-b-10
-         [comps/labeled-checkbox
+          [comps/labeled-checkbox
           name
           (get-in option [:profs proficiency-choice-key :options key])
           false
