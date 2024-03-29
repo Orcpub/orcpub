@@ -220,7 +220,9 @@ We work on forks, and branches.  Fork our repo, then create a new branch for any
 
 - Install Java: http://openjdk.java.net/ 
 - or http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
-- Download [Datomic](https://www.datomic.com/get-datomic.html), and unzip it into a directory.
+- For MacOS/Linux Download [Datomic](https://www.datomic.com/get-datomic.html), and unzip it into a directory.
+
+* For Windows [DMV Datomic](https://dungeonmastersvault.app.box.com/s/f9qifk069zfpwjr4poy6u1ngw6dgieqc) - newer versions do not work on Windows. it's a known issue that the Datomic team hasn't bothered to solve.
 
   Launch Datomic by going to shell/cmd prompt in the unzipped directory and run:
 
@@ -284,7 +286,9 @@ You can use the community edition of [IntelliJ IDEA](https://www.jetbrains.com/i
 ### VS Code
 You can use the open source edition of [Visual Studio Code](https://code.visualstudio.com/Download) with the Calva: Clojure & ClojureScript Interactive Programming, Clojure Code, and Bookmarks Extensions.
 
-To start REPL with VS Code, first launch datomic in a cmd window, then jack-in using the Leiningen + Legacy Figwheel, figwheel-native, and select the :dev and optionally :start-server.
+To start REPL with VS Code:
+* first launch datomic in a cmd window with the transactor snippet above
+* THEN jack-in using the `Leiningen + Legacy Figwheel`, `figwheel-native`, and select the `:dev` and optionally `:start-server`
 
 ### REPL
 
@@ -453,7 +457,7 @@ For this reason we have to build a dependency graph of derived attributes and th
 ## FAQs
 **Q: I'm a newb Clojure developer looking to get my feet wet, where to start?**
 
-**A:** *First I would start by getting the fundamentals down at http://www.4clojure.com/ From there you might add some unit tests or pick up an open issue on the "Issues" tab (and add unit tests with it).*
+**A:** *First I would start by getting the fundamentals down at https://4clojure.oxal.org/ From there you might add some unit tests or pick up an open issue on the "Issues" tab (and add unit tests with it).*
 
 
 **Q: Your DSL for defining character options is pretty cool, I can build any type of character option out there. How about I add a bunch on content from the Player's Handbook?**
