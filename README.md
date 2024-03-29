@@ -287,7 +287,8 @@ You can use the community edition of [IntelliJ IDEA](https://www.jetbrains.com/i
 You can use the open source edition of [Visual Studio Code](https://code.visualstudio.com/Download) with the Calva: Clojure & ClojureScript Interactive Programming, Clojure Code, and Bookmarks Extensions.
 
 To start REPL with VS Code:
-* first launch datomic in a cmd window with the transactor snippet above
+* first launch datomic in a cmd window with the transactor snippet from above: `bin\transactor config/samples/free-transactor-template.properties`
+  * you can also just add that to a `.ps1` file inside your project for easier reference eg. `run-datomic ps1`
 * THEN jack-in using the `Leiningen + Legacy Figwheel`, `figwheel-native`, and select the `:dev` and optionally `:start-server`
 
 ### REPL
