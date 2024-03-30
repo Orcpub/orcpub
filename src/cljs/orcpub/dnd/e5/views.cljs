@@ -1515,8 +1515,7 @@
     [:div.flex.justify-cont-s-b.w-100-p.align-items-c
      [:div.flex.align-items-c.align-items-t
       (if image-url
-        [:img.m-r-20.m-t-10.m-b-10 {:src image-url
-                                    :style thumbnail-style}])
+        [:img.m-r-20.m-t-10.m-b-10.image-character-thumbnail {:src image-url }])
       [:div.flex.character-summary.m-t-20.m-b-20
        (if (and character-name include-name?) [:span.m-r-20.m-b-5
                                                [:span.character-name character-name]

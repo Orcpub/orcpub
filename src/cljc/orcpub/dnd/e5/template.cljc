@@ -49,14 +49,22 @@
                (assoc a k other-v other-k v))))))
 
 (def ability-icons
+  "Icons / names are provided by https://game-icons.net/"
   {::char5e/str "strong"
-   ::char5e/con "caduceus"
+   ::char5e/con "rod-of-asclepius"
    ::char5e/dex "body-balance"
    ::char5e/int "read"
    ::char5e/wis "meditation"
    ::char5e/cha "aura"})
 
-(defn ability-icon [k size theme]
+;; REVIEW: use generic function for all icons instead?
+(defn ability-icon
+  "Takes [k size theme] to generate css class name based on the size and theme.
+   `k` is the icon name/key in image set,
+   `size` sets both h and w,
+   `theme` sets light/dark color and opacity.
+   Only used for `ability-icons` -- see body of function below."
+  [k size theme]
   (let [light-theme? (= "light-theme" theme)]
     [:img {:class-name (str "h-" size " w-" size (if light-theme? " opacity-7"))
            :src (str (if light-theme? "/image/black/" "/image/") (ability-icons k) ".svg")}]))

@@ -429,8 +429,22 @@
   (str (dice/dice-string die-count die mod)
        (if damage-type (str " " (name damage-type)))))
 
-(defn attacks-and-spellcasting-fields [built-char]
-  (let [all-weapons (mi5e/equipped-items-details (char5e/all-weapons-inventory built-char) mi5e/all-weapons-map)
+(defn attacks-and-spellcasting-fields 
+  "For each weapon, we are creating a new map with the name, the attack bonus, and the damage.
+  The attack bonus is calculated using the function 'char5e/best-weapon-attack-modifier' which
+  calculates the attack bonus for a specific weapon.
+  The damage is calculated using the function 'damage-str' which takes the damage die, damage die count,
+  the damage modifier, and the damage type, and combines them into a string of the form 'dice-string damage-type'.
+  If the weapon is versatile, we also create a second map, where the name is suffixed with ' (two-handed)'
+  and the attack bonus and damage is calculated for the versatile form of the weapon.
+  We then remove any nil maps, and mapcat concatenates all of the maps into a single list.
+  The remove function filters out weapons of type 'ammunition'."
+  [built-char]
+  (let [all-weapons ; map of all weapons in inventory
+        (mi5e/equipped-items-details ; function to filter for equipped weapons
+         (char5e/all-weapons-inventory built-char)
+         @(subscribe [::mi5e/all-weapons-map]) ; re-frame subscription for all weapons
+         )
         weapon-fields (mapcat
                        (fn [{:keys [name ::weapon5e/damage-die ::weapon5e/damage-die-count ::weapon5e/damage-type] :as weapon}]
                          (let [versatile (:versatile weapon)
@@ -452,8 +466,7 @@
                         all-weapons))
         first-3-weapons (take 3 weapon-fields)
         rest-weapons (drop 3 weapon-fields)
-        number-of-attacks (char5e/number-of-attacks built-char)
-        ]
+        number-of-attacks (char5e/number-of-attacks built-char)]
 
     (apply merge
      {:attacks-and-spellcasting (str "Number of Attacks: " number-of-attacks "\n"

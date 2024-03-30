@@ -1521,23 +1521,23 @@
     :ui-fns (letfn [(select-selection [v] (select-keys v [:selection]))]
               [{:key :weapons
                 :hide-homebrew? true
-                :ui-fn (fn [v] [inventory-selector [::equip5e/weapons-map] 60 (select-selection v)])}
+                :ui-fn (fn [v] [inventory-selector [::equip5e/weapons-map] 70 (select-selection v)])}
                {:key :magic-weapons
                 :hide-homebrew? true
-                :ui-fn (fn [v] [inventory-selector [::mi5e/magic-weapon-map] 60 (select-selection v)])}
+                :ui-fn (fn [v] [inventory-selector [::mi5e/magic-weapon-map] 70 (select-selection v)])}
                {:key :armor
                 :hide-homebrew? true
-                :ui-fn (fn [v] [inventory-selector [::equip5e/armor-map] 60 (select-selection v)])}
+                :ui-fn (fn [v] [inventory-selector [::equip5e/armor-map] 70 (select-selection v)])}
                {:key :magic-armor
                 :hide-homebrew? true
-                :ui-fn (fn [v] [inventory-selector [::mi5e/magic-armor-map] 60 (select-selection v)])}
+                :ui-fn (fn [v] [inventory-selector [::mi5e/magic-armor-map] 70 (select-selection v)])}
                {:key :equipment
                 :hide-homebrew? true
                 :ui-fn (fn [v]
-                         [inventory-selector [::equip5e/equipment-map] 60 (select-selection v) ::char5e/custom-equipment])}
+                         [inventory-selector [::equip5e/equipment-map] 70 (select-selection v) ::char5e/custom-equipment])}
                {:key :other-magic-items
                 :hide-homebrew? true
-                :ui-fn (fn [v] [inventory-selector [::mi5e/other-magic-items-map] 60 (select-selection v)])}
+                :ui-fn (fn [v] [inventory-selector [::mi5e/other-magic-items-map] 70 (select-selection v)])}
                {:key :treasure
                 :hide-homebrew? true
                 :ui-fn (fn [v] [inventory-selector [::equip5e/treasure-map] 100 (select-selection v) ::char5e/custom-treasure])}])}])
@@ -1824,10 +1824,9 @@
       [character-textarea entity-values ::char5e/flaws]]
      [:div.flex.align-items-c.w-100-p.m-t-30
       (if image-url
-        [:img.m-r-10 {:src image-url
+        [:img.m-r-10.image-character-thumbnail {:src image-url
                       :on-error (image-error :failed-loading-image image-url)
-                      :on-load (if image-url-failed image-loaded)
-               :style image-style}])
+                      :on-load (if image-url-failed image-loaded)}])
       [:div.flex-grow-1
        [:span.personality-label.f-s-18 "Image URL"]
        [character-input entity-values ::char5e/image-url nil set-image-url]
@@ -1838,11 +1837,10 @@
       [character-input entity-values ::char5e/faction-name]]
      [:div.flex.align-items-c.w-100-p.m-t-30
       (if faction-image-url
-        [:img.m-r-10 {:src faction-image-url
+        [:img.m-r-10.image-faction-thumbnail {:src faction-image-url
                       :on-error (image-error :failed-loading-faction-image faction-image-url)
                       :on-load (if faction-image-url-failed
-                                 faction-image-loaded)
-               :style image-style}])
+                                 faction-image-loaded)}])
       [:div.flex-grow-1
        [:span.personality-label.f-s-18 "Faction Image URL"]
        [character-input entity-values ::char5e/faction-image-url nil set-faction-image-url]
