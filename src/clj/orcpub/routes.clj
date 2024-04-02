@@ -402,6 +402,7 @@
     :flaws 8
     :features-and-traits 8
     :features-and-traits-2 8
+    :features-and-traits-3 8
     :attacks-and-spellcasting 8
     :backstory 8
     :other-profs 8

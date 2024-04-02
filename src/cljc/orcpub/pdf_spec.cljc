@@ -145,6 +145,33 @@
                                          (actions-string "-----------Other Traits------------" traits)]))
                                traits-str))}))
 
+(defn traits-fields [built-char]
+  (let [traits-by-type (group-by :type (es/entity-val built-char :traits))
+        bonus-actions (sort-by :name (concat (es/entity-val built-char :bonus-actions)
+                                             (traits-by-type :b-action)))
+        actions (sort-by :name (concat (es/entity-val built-char :actions)
+                                       (traits-by-type :action)))
+        reactions (sort-by :name (concat (es/entity-val built-char :reactions)
+                                         (traits-by-type :reaction)))
+        traits (sort-by :name (traits-by-type nil))
+        traits-str (traits-string traits)
+        actions? (or (seq bonus-actions)
+                     (seq actions)
+                     (seq reactions)
+                     (seq traits))
+        header (features-and-traits-header built-char)
+        ]
+    {:features-and-traits-3 (str header "\n\n"
+                             (if actions?
+                               (s/join
+                                "\n\n"
+                                (remove nil?
+                                        [(actions-string "----------Bonus Actions----------" bonus-actions)
+                                         (actions-string "---------------Actions--------------" actions)
+                                         (actions-string "-------------Reactions-------------" reactions)
+                                         (actions-string "-----------Other Traits------------" traits)]))
+                               traits-str))}))
+
 (defn attack-string [attack]
   (str "- " (trait-string (:name attack) (disp5e/attack-description attack))))
 
