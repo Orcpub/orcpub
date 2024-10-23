@@ -2433,7 +2433,7 @@
                            {:level 2
                             :name "Sculpt Spells"
                             :page 117
-                            :summary "can choose up to 1 + spell's level creatures to automatically save against your evocation spells and take no damage"}
+                            :summary "When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell’s level. The chosen creatures automatically succeed on their saving throws against the spell, and they take no damage if they would normally take half damage on a successful save."}
                            {:level 6
                             :name "Potent Cantrip"
                             :page 117
