@@ -4445,6 +4445,30 @@
     [:div.f-s-18.f-w-b.m-b-10 "Other Tools"]
     [tool-prof-checkboxes background equip/misc-tools]]])
 
+(defn background-weapon-proficiency [background]
+  [:div.m-b-20
+   [:div.f-s-18.f-w-b.m-b-10 "Weapon Proficiency"]
+   [:div.flex.flex-wrap
+    [:div.m-r-20.m-b-10
+     (let [kw :improvised-weapons-prof]
+       [comps/labeled-checkbox
+        "You gain proficiency with improvised weapons"
+        (get-in background [:props kw])
+        false
+        #(dispatch [::bg/toggle-background-prop kw])])]
+    (doall
+     (map
+      (fn [num]
+        ^{:key num}
+        [:div.m-r-20.m-b-10
+         (let [kw :weapon-prof-choice]
+           [comps/labeled-checkbox
+            (str "You gain proficiency with " num " weapons of your choice")
+            (= num (get-in background [:props kw]))
+            false
+            #(dispatch [::bg/toggle-feature-value-prop kw num])])])
+      (range 1 5)))]])
+
 (defn background-starting-equipment [background]
   [:div.m-t-20.m-b-20
    [:div.f-s-24.f-w-b.m-b-10 "Starting Equipment"]
@@ -4597,7 +4621,7 @@
             (= num (get-in feat [:props kw]))
             false
             #(dispatch [::feats/toggle-feat-value-prop kw num])])])
-      (range 3 5)))]])
+      (range 1 5)))]])
 
 (defn option-armor-proficiency [option toggle-map-prop-event]
   [:div.m-b-20
@@ -5004,6 +5028,7 @@
      [:div [feat-initiative-bonuses feat]]
      [:div [feat-misc-modifiers feat]]
      [:div [feat-spellcasting feat]]
+     [:div [option-spells feat ::feats/set-feat-spell-level ::feats/set-feat-spell-value ::feats/delete-feat-spell]]
      [:div [option-skill-proficiency-or-expertise feat ::feats/toggle-feat-map-prop]]
      [:div [option-tool-proficiency-or-expertise feat ::feats/toggle-feat-map-prop]]]))
 
@@ -6097,6 +6122,7 @@
      [:div [background-skill-proficiencies background]]
      [:div [background-languages background]]
      [:div [background-tool-proficiencies background]]
+     [:div [background-weapon-proficiency background]]
      [:div [background-starting-equipment background]]
      [:div
       [option-traits
