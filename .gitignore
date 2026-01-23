@@ -34,3 +34,11 @@ deploy/homebrew/*
 
 # As created by some LSP-protocol tooling, e.g. nvim-lsp
 .lsp
+
+resources/IceWind Page 1.pdf
+
+resources/IceWind Page 2.pdf
+
+resources/!FeatureSheet.pdf
+
+resources/!Mythos Page 2.pdf
