@@ -166,9 +166,25 @@
 
 (def ^:private builtin-races
   #{:dwarf :elf :halfling :human :dragonborn :gnome
-    :half-elf :half-orc :tiefling :hill-dwarf :mountain-dwarf
-    :high-elf :wood-elf :drow :lightfoot :stout :forest-gnome
-    :rock-gnome})
+    :half-elf :half-orc :tiefling})
+
+;; Built-in subraces: PHB subrace keys auto-generated from their names via
+;; common/name-to-kw. Human cultural variants (Calishite etc.) are defined
+;; in spell_subs.cljs with only :name, so their keys are derived from the name.
+(def ^:private builtin-subraces
+  #{;; Dwarf
+    :hill-dwarf :mountain-dwarf
+    ;; Elf
+    :high-elf :wood-elf :drow
+    ;; Halfling
+    :lightfoot :stout
+    ;; Gnome
+    :forest-gnome :rock-gnome
+    ;; Human cultural variants (spell_subs.cljs human-option-cfg :subraces)
+    :calishite :chondathan :damaran :illuskan
+    :mulan :rashemi :shou :tethyrian :turami
+    ;; Human variant selection options
+    :standard-human :variant-human})
 
 ;; Only Acolyte is hardcoded (spell_subs.cljs:538).
 (def ^:private builtin-backgrounds #{:acolyte})
@@ -188,7 +204,7 @@
     :class (contains? builtin-classes k)
     :subclass (contains? builtin-subclasses k)
     :race (contains? builtin-races k)
-    :subrace (contains? builtin-races k)
+    :subrace (contains? builtin-subraces k)
     :background (contains? builtin-backgrounds k)
     :feat (contains? builtin-feats k)
     false))

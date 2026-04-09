@@ -150,16 +150,17 @@
 (defn character-textarea [entity-values prop-name & [cls-str]]
   [character-field-50000 entity-values prop-name :textarea cls-str])
 
-(defn prereq-failures [option]
-  (remove
-   nil?
-   (map
-    (fn [{:keys [::t/prereq-fn ::t/label] :as prereq}]
-      (if prereq-fn
-        (when (not (prereq-fn))
-          label)
-        (js/console.warn "NO PREREQ_FN" (::t/name option) prereq)))
-    (::t/prereqs option))))
+(defn prereq-failures [option built-char]
+  (when built-char
+    (remove
+     nil?
+     (map
+      (fn [{:keys [::t/prereq-fn ::t/label] :as prereq}]
+        (if prereq-fn
+          (when (not (prereq-fn built-char))
+            label)
+          (js/console.warn "NO PREREQ_FN" (::t/name option) prereq)))
+      (::t/prereqs option)))))
 
 (defn set-class-fn [i options-map]
   (fn [e] (let [new-key (keyword (.. e -target -value))]
@@ -195,7 +196,7 @@
 
 (defn class-level-selector []
   (let [expanded? (r/atom false)]
-    (fn [i key selected-class options unselected-classes-set]
+    (fn [i key selected-class options unselected-classes-set built-char]
       (let [options-map (make-options-map options)
             class-template-option (options-map key)
             path [:class-levels key]]
@@ -208,7 +209,7 @@
            (doall
             (map
              (fn [{:keys [::t/key ::t/name] :as option}]
-               (let [failed-prereqs (when (pos? i) (prereq-failures option))]
+               (let [failed-prereqs (when (pos? i) (prereq-failures option built-char))]
                  ^{:key key}
                  [:option.builder-dropdown-item
                   {:value key
@@ -285,7 +286,7 @@
        (map-indexed
         (fn [i [key selected-class]]
           ^{:key key}
-          [class-level-selector i key selected-class (map class-level-data options) unselected-classes-set])
+          [class-level-selector i key selected-class (map class-level-data options) unselected-classes-set built-char])
         selected-classes))]
      (when (seq remaining-classes)
        [:div.orange.p-5.underline.pointer
