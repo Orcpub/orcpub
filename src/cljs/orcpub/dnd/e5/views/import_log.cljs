@@ -89,6 +89,58 @@
       "Renamed key " [:code {:style code-style} (pr-str from)]
       " \u2192 " [:code {:style code-style} (pr-str to)]]
 
+     :export-missing-fields
+     (let [details (:details change)]
+       [:div
+        [:span [:i.fa.fa-exclamation-triangle.m-r-5 {:style {:color "#f0a100"}}]
+         (or description "Missing fields detected during export")]
+        (when (seq details)
+          [:div {:style {:margin-top "4px" :padding-left "20px"}}
+           (for [[idx {:keys [key content-type plugin missing-fields
+                              traits-missing-names]}] (map-indexed vector details)]
+             ^{:key idx}
+             [:div {:style {:padding "2px 0" :font-size "11px"
+                            :color "rgba(255,255,255,0.6)"}}
+              [:code {:style code-style-sm} (name key)]
+              (when content-type
+                [:span " (" (-> (name content-type) (.replace "orcpub.dnd.e5/" "")) ")"])
+              (when plugin
+                [:span {:style {:color "rgba(255,255,255,0.35)"}} (str " in " plugin)])
+              (let [parts (cond-> []
+                            (seq missing-fields)
+                            (conj (str "missing: " (str/join ", " (map name missing-fields))))
+                            (and traits-missing-names (pos? traits-missing-names))
+                            (conj (str traits-missing-names " trait(s) without name")))]
+                (when (seq parts)
+                  [:span " \u2014 " (str/join "; " parts)]))])])])
+
+     :dedup-selection-options
+     ;; Duplicate options within one Selection's choice list. An option's key is
+     ;; derived from its name, so same-named options collide (the second silently
+     ;; overrides the first downstream). Report the fix \u2014 identical copies dropped,
+     ;; same-name-different-content renamed \u2014 so the user can rename more clearly.
+     (let [details (:details change)]
+       [:div
+        [:span [:i.fa.fa-clone.m-r-5 {:style {:color "#47eaf8"}}]
+         (or description "Resolved duplicate selection options")]
+        (when (seq details)
+          [:div {:style {:margin-top "4px" :padding-left "20px"}}
+           (for [[idx {:keys [type item-key content-type plugin] d-desc :description}]
+                 (map-indexed vector details)]
+             ^{:key idx}
+             [:div {:style {:padding "2px 0" :font-size "11px"
+                            :color "rgba(255,255,255,0.6)"}}
+              [:i {:class (str "fa m-r-5 "
+                               (if (= type :dedup-renamed) "fa-pencil" "fa-minus-circle"))
+                   :style {:color "rgba(255,255,255,0.45)"}}]
+              d-desc
+              (when content-type
+                [:span " (" (-> (name content-type) (.replace "orcpub.dnd.e5/" "")) ")"])
+              (when item-key
+                [:code {:style code-style-sm} (name item-key)])
+              (when plugin
+                [:span {:style {:color "rgba(255,255,255,0.35)"}} (str " in " plugin)])])])])
+
      ;; Default
      [:span (pr-str change)])])
 
@@ -122,6 +174,7 @@
               :top 0
               :right (if shown? 0 "-420px")
               :width "400px"
+              :max-width "100vw"
               :height "100vh"
               :background "#1a1e28"
               :color "white"
@@ -177,8 +230,9 @@
 
       ;; Grouped change sections
       (let [changes (:changes log)
-            user-types #{:key-renamed :filled-required-fields
-                         :string-fix :text-normalization :renamed-plugin-key}
+            user-types #{:key-renamed :filled-required-fields :export-missing-fields
+                         :string-fix :text-normalization :renamed-plugin-key
+                         :dedup-selection-options}
             sections [{:types #{:key-renamed}
                        :title-fn #(str "Key Renames (" (count %) ")")
                        :icon "fa-tag" :icon-color "#47eaf8"
@@ -191,7 +245,16 @@
                                        (str "Field Fixes (" (count items) ")"))))
                        :icon "fa-pencil" :icon-color "#f0a100"
                        :bg-color "rgba(240, 161, 0, 0.1)" :border-color "#f0a100"}
-                      {:types #{:string-fix :text-normalization :renamed-plugin-key}
+                      {:types #{:export-missing-fields}
+                       :title-fn (fn [items]
+                                   (let [detail-count (reduce + 0 (map #(count (:details %)) items))]
+                                     (if (pos? detail-count)
+                                       (str "Export Issues (" detail-count " items)")
+                                       (str "Export Issues (" (count items) ")"))))
+                       :icon "fa-exclamation-triangle" :icon-color "#f0a100"
+                       :bg-color "rgba(240, 161, 0, 0.1)" :border-color "#f0a100"}
+                      {:types #{:string-fix :text-normalization :renamed-plugin-key
+                                :dedup-selection-options}
                        :title-fn #(str "Data Cleanup (" (count %) ")")
                        :icon "fa-wrench" :icon-color "#47eaf8"
                        :bg-color "rgba(71, 234, 248, 0.08)" :border-color "#47eaf8"}]

@@ -21,7 +21,7 @@
                                                                     handle-api-response]]
             [reagent.ratom :as ra]
             [clojure.string :as s]
-            [cljs-http.client :as http]
+            [orcpub.dnd.e5.http-safe :as http]
             [cljs.core.async :refer [<!]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -50,11 +50,30 @@
    (fn [_ _] []))
   )
 
+;; Ephemeral overlay of custom items that arrived embedded in a share link
+;; (view-once). Held raw in db :shared-custom-items — never persisted, never in
+;; the item editor — and folded into resolution below. See share_bundle/share-url.
+(reg-sub
+ ::mi5e/shared-custom-items
+ (fn [db _]
+   (get db :shared-custom-items)))
+
+(defn- safe-expand-items
+  "expand-magic-items per item, dropping any that throw. Used for the SHARED
+   (untrusted) overlay so one malformed item can't blank the whole sheet. (These
+   are already filtered to expandable items at ingest; this is belt-and-suspenders.)"
+  [raw-items]
+  (mapcat (fn [it] (try (mi5e/expand-magic-items [it]) (catch :default _ nil)))
+          raw-items))
+
 (reg-sub
  ::mi5e/expanded-custom-items
  :<- [::mi5e/custom-items]
- (fn [custom-items _]
-   (mi5e/expand-magic-items custom-items)))
+ :<- [::mi5e/shared-custom-items]
+ (fn [[custom-items shared] _]
+   ;; Shared items appended LAST so they win key collisions on the shared sheet.
+   (concat (mi5e/expand-magic-items custom-items)
+           (safe-expand-items shared))))
 
 (reg-sub
  ::mi5e/custom-item-map

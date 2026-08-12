@@ -581,7 +581,7 @@
     :weapon-name-2 8
     :weapon-name-3 8}))
 
-(defn add-spell-cards! [doc spells-known spell-save-dcs spell-attack-mods custom-spells print-spell-card-dc-mod?]  (try
+(defn add-spell-cards! [doc spells-known spell-save-dcs spell-attack-mods custom-spells print-spell-card-dc-mod? logo-img bw? bw-faded?]  (try
     (let [custom-spells-map (common/map-by-key custom-spells)
           spells-map (merge spells/spell-map custom-spells-map)
           flat-spells (-> spells-known vals flatten)
@@ -592,7 +592,12 @@
                               class)
                             key])
                          flat-spells)
-          parts (vec (partition-all 9 flat-spells))]
+          parts (vec (partition-all 9 flat-spells))
+          ;; Load the embedded fonts + build the memoized image embedder ONCE per
+          ;; document, not once per page (print-spells/print-backs used to re-parse
+          ;; 4 TTFs per call, and each card icon was re-decoded+embedded per spell).
+          fonts (pdf/load-fonts doc)
+          img (pdf/make-image-loader doc)]
       (doseq [i (range (count parts))
               :let [part (parts i)]]
         (let [page (PDPage.)]
@@ -612,15 +617,20 @@
                                         (pdf/print-spells
                                          cs
                                          doc
+                                         fonts
+                                         img
                                          2.5
                                          3.5
                                          spells
                                          i
-                                         print-spell-card-dc-mod?))
+                                         print-spell-card-dc-mod?
+                                         bw?
+                                         bw-faded?))
                   back-page (PDPage.)]
               (with-open [back-page-cs (PDPageContentStream. doc back-page)]
                 (.addPage doc back-page)
-                (pdf/print-backs back-page-cs doc 2.5 3.5 remaining-desc-lines i)))))))
+                (pdf/print-backs back-page-cs fonts img 2.5 3.5 remaining-desc-lines i
+                                 logo-img)))))))
     (catch Exception e (prn "FAILED ADDING SPELLS CARDS!" e))))
 
 (defn character-pdf-2 [req]
@@ -631,7 +641,21 @@
                                    {:error :invalid-pdf-data}
                                    e))))
         
-        {:keys [image-url image-url-failed faction-image-url faction-image-url-failed spells-known custom-spells spell-save-dcs spell-attack-mods print-spell-cards? print-character-sheet-style? print-spell-card-dc-mod? character-name class-level player-name]} fields
+        {:keys [image-url image-url-failed faction-image-url faction-image-url-failed spells-known custom-spells spell-save-dcs spell-attack-mods print-spell-cards? print-character-sheet-style? print-spell-card-dc-mod? print-card-back-logo? card-back-logo-faded? print-bw? bw-faded? character-name class-level player-name flatten?]} fields
+
+        ;; Printer-friendly mode: monochrome spell-card icons + a forced solid-black
+        ;; card-back logo (no color anywhere on the cards). bw-faded? picks the
+        ;; icon style: default solid black (white-halo labels) vs faded grayscale.
+        bw? (true? print-bw?)
+        bw-faded? (true? bw-faded?)
+
+        ;; Resolve the card-back logo to a concrete resource once. nil = off.
+        ;; Default is the solid-black mark; the faded brand-orange watermark is an
+        ;; opt-in for color printing, and B&W mode overrides it back to solid black.
+        card-back-logo-img (when print-card-back-logo?
+                             (if (and card-back-logo-faded? (not bw?))
+                               "public/image/dmv-mark-faded-orange.png"
+                               "public/image/dmv-mark-black.png"))
 
         sheet6 (str "fillable-char-sheetstyle-" print-character-sheet-style? "-6-spells.pdf")
         sheet5 (str "fillable-char-sheetstyle-" print-character-sheet-style? "-5-spells.pdf")
@@ -649,8 +673,6 @@
                                           (find fields :spellcasting-class-1) sheet1
                                           :else sheet0)))
         output (ByteArrayOutputStream.)
-        user-agent (get-in req [:headers "user-agent"])
-        chrome? (re-matches #".*Chrome.*" user-agent)
         filename (cond
                    (and (s/blank? player-name) (s/blank? character-name)) "character.pdf"
                    (s/blank? player-name) (str character-name " - " class-level ".pdf")
@@ -659,9 +681,13 @@
     ;; PDFBox 3.x: Loader/loadPDF accepts byte[], File, or RandomAccessRead —
     ;; NOT InputStream. Read the resource stream into a byte array first.
     (with-open [doc (Loader/loadPDF (.readAllBytes input))]
-      (pdf/write-fields! doc fields (not chrome?) font-sizes)
+      ;; Fillable in every browser by default. The old non-Chrome flattening was a
+      ;; workaround for Firefox ignoring NeedAppearances; write-fields! now bakes
+      ;; real appearance streams, so values render everywhere AND the form stays
+      ;; editable. Clients that want a locked/static PDF pass `:flatten? true`.
+      (pdf/write-fields! doc fields (true? flatten?) font-sizes)
       (when (and print-spell-cards? (seq spells-known))
-        (add-spell-cards! doc spells-known spell-save-dcs spell-attack-mods custom-spells print-spell-card-dc-mod?))
+        (add-spell-cards! doc spells-known spell-save-dcs spell-attack-mods custom-spells print-spell-card-dc-mod? card-back-logo-img bw? bw-faded?))
 
       (when (and image-url
                  (re-matches #"^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]" image-url)
@@ -1153,6 +1179,21 @@
                     (Long/parseLong id))]
     (get-character-for-id db parsed-id)))
 
+(defn report-character-problem
+  "User-initiated report that a character failed to load. Auth required. Emails
+   the client-supplied diagnostic (char-id, reader error, raw undecodable data)
+   to the configured support address, cc'ing the reporting user. Rate-limited
+   and gated on email config inside email/send-character-report; returns its
+   {:sent? .. :reason ..} so the client can fall back to the copyable report."
+  [{:keys [db transit-params identity]}]
+  (let [username   (:user identity)
+        user       (find-user-by-username-or-email db username)
+        user-email (:orcpub.user/email user)
+        {:keys [char-id error raw]} transit-params]
+    {:status 200
+     :body   (email/send-character-report
+              {:char-id char-id :user-email user-email :error error :raw raw})}))
+
 (defn get-user [{:keys [db identity]}]
   (let [username (:user identity)
         user (find-user-by-username-or-email db username)]
@@ -1452,6 +1493,8 @@
          :get `character-list}]
        [(route-map/path-for route-map/dnd-e5-char-summary-list-route) ^:interceptors [check-auth]
         {:get `character-summary-list}]
+       [(route-map/path-for route-map/dnd-e5-char-report-route) ^:interceptors [check-auth]
+        {:post `report-character-problem}]
        [(route-map/path-for route-map/dnd-e5-char-route :id ":id") ^:interceptors [check-auth]
         {:delete `delete-character}]
        [(route-map/path-for route-map/dnd-e5-char-route :id ":id")

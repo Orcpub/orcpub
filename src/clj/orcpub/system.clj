@@ -11,8 +11,11 @@
 
 (def dev-service-map-overrides
   {::http/port 8890
-   ;; Bind to loopback only in dev (don't expose to LAN)
-   ::http/host "localhost"
+   ;; Bind to loopback in dev. Override per-machine with ORCPUB_HTTP_HOST (e.g.
+   ;; "0.0.0.0") when the host needs to reach the dev server by IP — e.g. a Windows
+   ;; browser hitting a WSL VM, where localhost-forwarding can be flaky. Defaults to
+   ;; loopback so nothing is exposed to the LAN unless you opt in.
+   ::http/host (or (environ/env :orcpub-http-host) "localhost")
    ;; do not block thread that starts web server
    ::http/join? false
    ;; Routes can be a function that resolve routes,

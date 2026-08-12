@@ -206,3 +206,149 @@
           "all 3 feats should be flagged as missing")
       (is (= #{:blade-mastery :brawny :metabolic-control}
              (set (map :key missing-feats)))))))
+
+;; ============================================================================
+;; Spell Selection Key Reconciliation
+;; ============================================================================
+;;
+;; Saved characters had spell-selection keys derived from a
+;; mutated class :name (e.g., :cleric-source-cantrips-known instead of the
+;; canonical :cleric-cantrips-known). After reverting the mutation, the
+;; loaded plugin-class data has its canonical :name back, so the canonical
+;; selection keys can be reconstructed and used to heal orphaned saves.
+
+(defn- spell-selection-fixture
+  "Build a one-class character with a spell-selection options map under
+   the class entry. Returns the entity."
+  [class-key spell-options]
+  {::entity/options
+   {:class [{::entity/key class-key
+             ::entity/options spell-options}]}})
+
+(deftest test-reconcile-rewrites-name-derived-orphan-to-key-derived
+  (testing "Saved selection key (name-derived) gets rewritten to
+            the key-derived shape when the class entry's key disambiguates.
+            Example: conflict-renamed homebrew :artificer-kibbles-tasty had
+            saved selections under :artificer-cantrips-known (slug from :name
+            'Artificer'); the key-based derivation produces
+            :artificer-kibbles-tasty-cantrips-known."
+    (let [character (spell-selection-fixture
+                     :artificer-kibbles-tasty
+                     {:artificer-cantrips-known
+                      [{::entity/key :prestidigitation}
+                       {::entity/key :guidance}]})
+          loaded #{:artificer-kibbles-tasty}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (= 1 (count rewrote)))
+      (is (= {:class-key :artificer-kibbles-tasty
+              :from :artificer-cantrips-known
+              :to :artificer-kibbles-tasty-cantrips-known}
+             (first rewrote)))
+      (is (contains? new-options :artificer-kibbles-tasty-cantrips-known))
+      (is (not (contains? new-options :artificer-cantrips-known)))
+      (is (= 2 (count (:artificer-kibbles-tasty-cantrips-known new-options)))))))
+
+(deftest test-reconcile-leaves-orphan-when-class-not-loaded
+  (testing "Class entry whose :key isn't in the loaded set is passed through
+            untouched. The existing missing-content banner handles the
+            user-facing alert; no silent rewriting against arbitrary classes."
+    (let [character (spell-selection-fixture
+                     :artificer-kibbles-tasty
+                     {:artificer-cantrips-known
+                      [{::entity/key :guidance}]})
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character #{})
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (empty? rewrote))
+      (is (contains? new-options :artificer-cantrips-known)
+          "orphan data preserved unchanged"))))
+
+(deftest test-reconcile-leaves-healthy-key-alone
+  (testing "Healthy canonical (key-derived) selection key is not touched"
+    (let [character (spell-selection-fixture
+                     :artificer-kibbles-tasty
+                     {:artificer-kibbles-tasty-cantrips-known
+                      [{::entity/key :guidance}]})
+          loaded #{:artificer-kibbles-tasty}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (empty? rewrote))
+      (is (contains? new-options :artificer-kibbles-tasty-cantrips-known)))))
+
+(deftest test-reconcile-leaves-builtin-cleric-untouched
+  (testing "Built-in class with canonical keys is healthy and stays untouched"
+    (let [character (spell-selection-fixture
+                     :cleric
+                     {:cleric-cantrips-known
+                      [{::entity/key :guidance}]})
+          loaded #{:cleric}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (empty? rewrote))
+      (is (contains? new-options :cleric-cantrips-known)))))
+
+(deftest test-reconcile-preserves-non-spell-selection-keys
+  (testing "Non-spell-selection keys are passed through unchanged"
+    (let [character (spell-selection-fixture
+                     :artificer-kibbles-tasty
+                     {:divine-domain {::entity/key :life-domain}
+                      :skill-proficiency [{::entity/key :medicine}]
+                      :artificer-cantrips-known [{::entity/key :guidance}]})
+          loaded #{:artificer-kibbles-tasty}
+          {:keys [character]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (= {::entity/key :life-domain} (:divine-domain new-options)))
+      (is (= [{::entity/key :medicine}] (:skill-proficiency new-options)))
+      (is (contains? new-options :artificer-kibbles-tasty-cantrips-known))
+      (is (not (contains? new-options :artificer-cantrips-known))))))
+
+(deftest test-reconcile-rewrites-spells-known-suffix
+  (testing "spells-known suffix follows the same rebind path as cantrips-known"
+    (let [character (spell-selection-fixture
+                     :wizard-kibbles-tasty
+                     {:wizard-spells-known
+                      [{::entity/key :magic-missile}
+                       {::entity/key :shield}]})
+          loaded #{:wizard-kibbles-tasty}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          new-options (-> character ::entity/options :class first ::entity/options)]
+      (is (= :wizard-kibbles-tasty-spells-known (:to (first rewrote))))
+      (is (contains? new-options :wizard-kibbles-tasty-spells-known))
+      (is (= 2 (count (:wizard-kibbles-tasty-spells-known new-options)))))))
+
+(deftest test-reconcile-handles-character-with-no-classes
+  (testing "Character without :class entries returns unchanged result"
+    (let [character {::entity/options {}}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character #{})]
+      (is (empty? rewrote))
+      (is (= {::entity/options {}} character)))))
+
+(deftest test-reconcile-multiclass-each-class-isolated
+  (testing "Two classes each reconcile against their own expected keys.
+            Conflict-renamed homebrew with a saved name-derived orphan
+            rewrites; built-in alongside it stays healthy."
+    (let [character {::entity/options
+                     {:class [{::entity/key :artificer-kibbles-tasty
+                               ::entity/options
+                               {:artificer-cantrips-known
+                                [{::entity/key :guidance}]}}
+                              {::entity/key :wizard
+                               ::entity/options
+                               {:wizard-cantrips-known
+                                [{::entity/key :fire-bolt}]}}]}}
+          loaded #{:artificer-kibbles-tasty :wizard}
+          {:keys [character rewrote]}
+          (reconcile/reconcile-spell-selection-keys character loaded)
+          classes (-> character ::entity/options :class)]
+      (is (= 1 (count rewrote)))
+      (is (= :artificer-kibbles-tasty (:class-key (first rewrote))))
+      (is (contains? (-> classes first ::entity/options) :artificer-kibbles-tasty-cantrips-known))
+      (is (contains? (-> classes second ::entity/options) :wizard-cantrips-known)
+          "built-in class entry untouched"))))

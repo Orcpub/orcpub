@@ -71,7 +71,7 @@
    ::prereq-fn func
    ::hide-if-fail? hide-if-fail?})
 
-(defn option-cfg [{:keys [:db/id name key help selections modifiers associated-options prereqs order ui-fn icon select-fn edit-event] :as cfg}]
+(defn option-cfg [{:keys [:db/id name key help selections modifiers associated-options prereqs order ui-fn icon select-fn edit-event plugin-source] :as cfg}]
   {::id id
    ::name name
    ::key (or key (common/name-to-kw name))
@@ -84,7 +84,8 @@
    ::ui-fn ui-fn
    ::select-fn select-fn
    ::icon icon
-   ::edit-event edit-event})
+   ::edit-event edit-event
+   ::plugin-source plugin-source})
 
 (declare make-modifier-map-from-selections)
 (declare make-plugin-map-from-selections)

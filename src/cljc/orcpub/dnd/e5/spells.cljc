@@ -4227,3 +4227,42 @@ An affected creature is aware of the spell and can thus avoid answering question
       [(:key spell)
        spell]))
    spells))
+
+(def spell-key-aliases
+  "Pre-2024 wizard-possessive spell keys -> the current de-named SRD keys they were
+   renamed to. Homebrew paks authored against the old names reference e.g.
+   :leomunds-secret-chest, but the base data now keys that spell :secret-chest, so
+   the reference dangles with 'no loaded definition'. CURATED (not a strip-the-name
+   heuristic) so ONLY these known official renames resolve — an arbitrary unresolved
+   homebrew key stays flagged rather than being mis-substituted. Every target exists
+   in spell-map (asserted in spells_test)."
+  {:leomunds-secret-chest             :secret-chest
+   :leomunds-tiny-hut                 :tiny-hut
+   :mordenkainens-faithful-hound      :faithful-hound
+   :mordenkainens-private-sanctum     :private-sanctum
+   :mordenkainens-magnificent-mansion :magnificent-mansion
+   :mordenkainens-sword               :arcane-sword
+   :otilukes-resilient-sphere         :resilient-sphere
+   :otilukes-freezing-sphere          :freezing-sphere
+   :bigbys-hand                       :arcane-hand
+   :melfs-acid-arrow                  :acid-arrow
+   :nystuls-magic-aura                :arcanists-magic-aura
+   :evards-black-tentacles            :black-tentacles
+   :drawmijs-instant-summons          :instant-summons
+   :ottos-irresistible-dance          :irresistible-dance
+   :rarys-telepathic-bond             :telepathic-bond
+   :rar-s-telepathic-bond             :telepathic-bond  ; pak dropped the 'y': Rary's -> rar-s
+   :tashas-hideous-laughter           :hideous-laughter
+   :tensers-floating-disk             :floating-disk})
+
+(defn resolve-spell-key
+  "Canonical key for a spell-list reference `k` against `spells-map` (base + any
+   loaded plugins). Non-destructive: returns `k` unchanged when it already has a
+   definition (loaded homebrew always wins) or when it's genuinely unknown. ONLY
+   when `k` has no definition AND is a known old-name alias whose target IS loaded
+   does it return the target. Never overrides a loaded spell, never guesses."
+  [spells-map k]
+  (if (get spells-map k)
+    k
+    (let [target (get spell-key-aliases k)]
+      (if (and target (get spells-map target)) target k))))

@@ -10,11 +10,8 @@ Guides for developers and power users working with OrcPub's homebrew content sys
 - [🔍 Missing Content Detection](CONTENT_RECONCILIATION.md) - Find/fix missing content references
 - [📋 Required Fields Guide](HOMEBREW_REQUIRED_FIELDS.md) - Required fields per content type
 
-**Agent Knowledge Base:**
-- [📚 KB Index](kb/README.md) - Verified findings from deep investigations
-- [💥 Datomic Crash Analysis](kb/datomic-crash-analysis.md) - Root cause, frequency, fix options
-
 **For Developers:**
+- [ClojureScript Type Tolerance](clojurescript-type-tolerance.md) - What cljs silently tolerates vs. what crashes (and why); the string-op crash pattern behind render black screens
 - [🚨 Error Handling](ERROR_HANDLING.md) - Error handling utilities
 - [🗡️ Language Selection Fix](LANGUAGE_SELECTION_FIX.md) - Ranger favored enemy language corruption (#296)
 - [🐳 Docker User Management](docker-user-management.md) - Verified user setup for Docker deployments
@@ -46,8 +43,6 @@ Guides for developers and power users working with OrcPub's homebrew content sys
 **Problem:** Content keys change between versions (`:blood-hunter` → `:blood-hunter-v2`). Users see "(not loaded)" with no help.
 
 **Decision:** Multiple fuzzy matching strategies (Levenshtein, prefix, name similarity) to catch typos and versioning.
-
-**Gotcha:** Must exclude built-in content (PHB, Xanathar's) or system suggests switching from homebrew Artificer to PHB Artificer (which doesn't exist in 5e).
 
 → [CONTENT_RECONCILIATION.md](CONTENT_RECONCILIATION.md)
 

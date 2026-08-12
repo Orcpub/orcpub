@@ -28,12 +28,15 @@
             [orcpub.dnd.e5.options :as options]
             [clj-http.client :as client])
   (:import (org.apache.pdfbox.pdmodel.interactive.form PDCheckBox PDTextField)
+           (org.apache.pdfbox.pdmodel.interactive.annotation PDAnnotationWidget)
+           (org.apache.pdfbox.cos COSName)
            (org.apache.pdfbox.pdmodel PDPage PDDocument PDPageContentStream PDResources)
            ;; PDFBox 3.x: AppendMode enum replaces boolean flags in PDPageContentStream constructor
            ;; Use APPEND when adding content to existing pages (templates)
            ;; APPEND adds new drawing/text operators to the end of the page’s existing content stream, preserving everything already on the page.
            (org.apache.pdfbox.pdmodel PDPageContentStream$AppendMode)
            (org.apache.pdfbox.pdmodel.graphics.image JPEGFactory LosslessFactory)
+           (org.apache.pdfbox.pdmodel.graphics.state PDExtendedGraphicsState)
            ;; PDFBox 3.x: Standard14Fonts$FontName is a nested enum class
            ;; In Java: org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName
            ;; In Clojure: use $ to access nested classes
@@ -84,28 +87,105 @@
      :bold        "Vollkorn-Bold.ttf"
      :bold-italic "Vollkorn-BoldItalic.ttf"}))
 
-(defn write-fields! [doc fields flatten font-sizes]
+(defn make-image-loader
+  "Returns a memoized (resource-path -> PDImageXObject) embedder scoped to ONE
+   document. The card icons and logo are drawn dozens of times across a spellbook;
+   without this, each use re-decodes the PNG and embeds a DUPLICATE image object —
+   wasting CPU + transient memory per embed and bloating the file. Memoized so each
+   distinct image is decoded and embedded exactly once, then referenced thereafter."
+  [doc]
+  (memoize
+   (fn [resource-path]
+     (with-open [s (io/input-stream (io/resource resource-path))]
+       (LosslessFactory/createFromImage doc (ImageIO/read s))))))
+
+(defn- normalize-text
+  "Coerce a string into the WinAnsiEncoding subset PDFBox 3.x can render.
+   WinAnsiEncoding maps only 0x20-0xFF; PDType1Font throws on anything else, which
+   the appearance generator would hit at fill time -- blanking that field.
+
+   - \\t (U+0009)         -> space (keep separation in proportional fonts)
+   - other 0x00-0x1F      -> dropped
+   - \\n and \\r          -> preserved (PDF multi-line line break)
+   - U+2018 / U+2019      -> apostrophe
+   - U+201C / U+201D      -> double quote
+   - U+2013 / U+2014      -> hyphen / double hyphen
+   - U+2026               -> three dots
+   - any remaining > U+00FF -> '?' (a stray glyph degrades to a placeholder rather
+                              than blanking the whole field)
+
+   nil -> nil; non-strings stringified."
+  [s]
+  (when (some? s)
+    (-> (str s)
+        (s/replace "\t" " ")
+        (s/replace #"[\u0000-\u0008\u000B\u000C\u000E-\u001F]" "")
+        (s/replace "\u2018" "'")  (s/replace "\u2019" "'")
+        (s/replace "\u201C" "\"") (s/replace "\u201D" "\"")
+        (s/replace "\u2013" "-")  (s/replace "\u2014" "--")
+        (s/replace "\u2026" "...")
+        (s/replace #"[^\u0000-\u00FF]" "?"))))
+
+(defn- fix-widget-page-refs!
+  "Populate the /P (page reference) entry on widget annotations that are missing it.
+   Many fillable templates omit the /P back-pointer; PDFBox 3.x's flatten() then
+   logs a WARN per widget whose .getPage returns null. The page->annotation walk
+   gives the owning page, so we set it explicitly. Widgets with a valid /P are left
+   alone (multi-widget fields may legitimately point at a different page)."
+  [doc]
+  (doseq [page (.getPages doc)
+          annotation (.getAnnotations page)
+          :when (and (instance? PDAnnotationWidget annotation)
+                     (nil? (.getPage annotation)))]
+    (.setPage annotation page)))
+
+(defn write-fields!
+  "Populate an AcroForm in `doc` from the `fields` map, optionally flattening.
+
+   - `fields`     {field-name-keyword value}. Checkboxes take truthy/falsey; text
+                  fields take any value (normalized to WinAnsi). Unknown fields skipped.
+   - `flatten?`   truthy => bake appearances into page content and remove the
+                  interactive form (locked PDF). Falsey => stays fillable.
+   - `font-sizes` {field-name-keyword pt-size}, consulted ONLY when flattening —
+                  interactive forms keep the template's `/Helv 0 Tf` auto-sizing.
+
+   Bakes real appearance streams (NeedAppearances false + /Helv in the default
+   resources) so values render AND print in every viewer — not just ones that honor
+   NeedAppearances (Firefox's print path does not). Side effects only; returns nil."
+  [doc fields flatten? font-sizes]
   (let [catalog (.getDocumentCatalog doc)
         form (.getAcroForm catalog)
         res (or (.getDefaultResources form) (PDResources.))]
-    (.setNeedAppearances form true)
+    ;; The templates' field default appearances reference "/Helv"; ensure it's in
+    ;; the form default resources so PDFBox can GENERATE appearance streams (missing
+    ;; it -> generation silently fails -> blank in viewers/print paths that don't
+    ;; honor NeedAppearances).
+    (when (nil? (.getFont res (COSName/getPDFName "Helv")))
+      ;; Fresh instance (not the shared module-level HELVETICA): this COS object is
+      ;; added to THIS document's resource tree, and sharing one across documents
+      ;; risks aliasing during concurrent saves.
+      (.put res (COSName/getPDFName "Helv") (PDType1Font. Standard14Fonts$FontName/HELVETICA)))
     (.setDefaultResources form res)
+    ;; Bake appearances ourselves rather than deferring to the viewer.
+    (.setNeedAppearances form false)
     (doseq [[k v] fields]
       (try
         (let [field (.getField form (name k))]
           (when field
-            
-            (when (and flatten (font-sizes k) (instance? PDTextField field))
+            ;; font-sizes gated on flatten?: interactive forms keep the template's
+            ;; `/Helv 0 Tf` auto-sizing; flattening bakes a concrete size, so we
+            ;; rewrite the DA to the caller's size first.
+            (when (and flatten? (font-sizes k) (instance? PDTextField field))
               (.setDefaultAppearance field (str "/Helv " " " (font-sizes k) " Tf 0 0 0 rg")))
             (.setValue
              field
-             (cond 
+             (cond
                (instance? PDCheckBox field) (if v "Yes" "Off")
-               (instance? PDTextField field) (str v)
+               (instance? PDTextField field) (normalize-text v)
                :else nil))))
         (catch Exception e (prn "failed writing field: " k v (strace/print-stack-trace e)))))
-    (when flatten
-      (.setNeedAppearances form false)
+    (when flatten?
+      (fix-widget-page-refs! doc)
       (.flatten form))))
 
 (defn content-stream
@@ -150,6 +230,19 @@
                                   0)))
      (in-to-sz scaled-width)
      (in-to-sz scaled-height))))
+
+(defn draw-imagex-alpha
+  "draw-imagex at a reduced constant opacity (0.0-1.0). Used for the faded
+   grayscale card icons: a black `-bw` icon drawn at ~40% reads as a light
+   backdrop the black label sits over. Isolated in a save/restore so the alpha
+   doesn't leak into later drawing."
+  [cs img x y width height alpha]
+  (let [gs (doto (PDExtendedGraphicsState.)
+             (.setNonStrokingAlphaConstant (float alpha)))]
+    (.saveGraphicsState cs)
+    (.setGraphicsStateParameters cs gs)
+    (draw-imagex cs img x y width height)
+    (.restoreGraphicsState cs)))
 
 (def user-agent "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.172")
 
@@ -294,6 +387,18 @@
         (set-text-color cs 0 0 0))
       (.endText cs))))
 
+(defn draw-halo-text
+  "Draw text with a white outline (8 offset copies) then black fill, so a black
+   label stays legible on top of a solid-black icon. Used only in printer-friendly
+   B&W mode, where icon and text are both pure black; offsets are in inches."
+  [cs text font font-size x y]
+  (let [d 0.009]
+    (doseq [dx [(- d) 0 d]
+            dy [(- d) 0 d]
+            :when (not (and (zero? dx) (zero? dy)))]
+      (draw-text cs text font font-size (+ x dx) (+ y dy) [1 1 1]))
+    (draw-text cs text font font-size x y [0 0 0])))
+
 (defn draw-text-from-top [cs text font font-size x y & [color]]
   (draw-text cs text font font-size x (- 11.0 y) color))
 
@@ -347,22 +452,23 @@
       (str class-nm " Cantrip " school-str)
       (str class-nm " Level " (or level "?") " " school-str))))
 
-(defn draw-spell-field [cs document title value x y]
-  (with-open [img-stream (io/input-stream (io/resource (str "public/image/" title ".png")))]
-    (draw-imagex cs
-                 (LosslessFactory/createFromImage document (ImageIO/read img-stream))
-                 x
-                 (- 11 y 0.12)
-                 0.25
-                 0.25))
-  (.setNonStrokingColor cs (float 0) (float 0) (float 0))
-  (draw-text cs
-             value
-             HELVETICA_BOLD_OBLIQUE
-             8
-             x
-             (- y 0.07))
-  (.setNonStrokingColor cs (float 0) (float 0) (float 0)))
+(defn draw-spell-field [cs img title value x y bw? bw-faded?]
+  ;; The label overprints the icon. Three treatments (draw-spell-field is the
+  ;; single choke point for all four per-spell icons):
+  ;;   color (default)  -> baked-red icon, plain black text
+  ;;   B&W solid (A)     -> solid-black `-bw` icon, WHITE-HALO text so it reads
+  ;;   B&W faded (B)     -> `-bw` icon at 40% (light backdrop), plain black text
+  (let [icon (img (str "public/image/" title (when bw? "-bw") ".png"))
+        ix x
+        iy (- 11 y 0.12)]
+    (if (and bw? bw-faded?)
+      (draw-imagex-alpha cs icon ix iy 0.25 0.25 0.4)
+      (draw-imagex cs icon ix iy 0.25 0.25))
+    (if (and bw? (not bw-faded?))
+      (draw-halo-text cs value HELVETICA_BOLD_OBLIQUE 8 x (- y 0.07))
+      (do (.setNonStrokingColor cs (float 0) (float 0) (float 0))
+          (draw-text cs value HELVETICA_BOLD_OBLIQUE 8 x (- y 0.07))
+          (.setNonStrokingColor cs (float 0) (float 0) (float 0))))))
 
 (defn abbreviate-times [time]
   (-> time
@@ -395,37 +501,36 @@
       (s/replace #"Self.*" "Self")
       (s/replace #"feet" "ft")))
 
-(defn print-backs [cs document box-width box-height remaining-lines-vec page-number]
+(defn print-backs [cs fonts img box-width box-height remaining-lines-vec page-number logo-img]
+  ;; `img` is the memoized per-document image loader; `logo?` opts each card back
+  ;; into showing the card logo (matching the fronts) for double-sided printing.
+  ;; When logo? is false NO images are loaded here — the old code decoded+embedded
+  ;; the logo/rotation PNGs every page and never drew them (pure waste).
   (let [num-boxes-x (int (/ 8.5 box-width))
         num-boxes-y (int (/ 11.0 box-height))
-        total-width (* num-boxes-x box-width)
         total-height (* num-boxes-y box-height)
-        remaining-width (- 8.5 total-width)
+        remaining-width (- 8.5 (* num-boxes-x box-width))
         margin-x (/ remaining-width 2)
         remaining-height (- 11.0 total-height)
-        margin-y (/ remaining-height 2)
-        fonts (load-fonts document)]
-    (with-open [img-stream (io/input-stream (io/resource "public/image/card-logo.png"))
-                over-img-stream (io/input-stream (io/resource "public/image/clockwise-rotation.png"))]
-      (let [img (LosslessFactory/createFromImage document (ImageIO/read img-stream))
-            over-img (LosslessFactory/createFromImage document (ImageIO/read over-img-stream))]
-        (draw-grid cs 2.5 3.5)
-        (draw-text cs
-                   (str "Page " (inc page-number) " (reverse)")
-                   (:italic fonts)
-                   8
-                   0.12
-                   (- 11 0.15))
-        (doall
-         (for [i (range num-boxes-x)
-               j (range num-boxes-y)]
-           (let [x (+ margin-x (* box-width i))
-                 y (+ margin-y (* box-height j))
-                 spell-index (+ i (* j num-boxes-x))
-                
-                 {:keys [remaining-lines spell-name]} (remaining-lines-vec spell-index)]
-             (when (seq remaining-lines)
-               (draw-text-to-box cs
+        margin-y (/ remaining-height 2)]
+    (draw-grid cs 2.5 3.5)
+    (draw-text cs
+               (str "Page " (inc page-number) " (reverse)")
+               (:italic fonts)
+               8
+               0.12
+               (- 11 0.15))
+    (doall
+     (for [i (range num-boxes-x)
+           j (range num-boxes-y)]
+       (let [x (+ margin-x (* box-width i))
+             y (+ margin-y (* box-height j))
+             spell-index (+ i (* j num-boxes-x))
+             {:keys [remaining-lines spell-name]} (remaining-lines-vec spell-index)]
+         (if (seq remaining-lines)
+           ;; This card back carries overflow text from the front.
+           (do
+             (draw-text-to-box cs
                                spell-name
                                (:bold fonts)
                                10
@@ -433,23 +538,36 @@
                                (- 11.0 y 0.08)
                                (- box-width 0.3)
                                0.25)
-               (draw-lines-to-box cs
+             (draw-lines-to-box cs
                                remaining-lines
                                (:plain fonts)
                                8
                                (+ x 0.12)
                                (- 11.0 y 0.24)
                                (- box-height 0.2))
-               (draw-text-to-box cs
+             (draw-text-to-box cs
                                "(reverse)"
                                (:italic fonts)
                                10
                                (+ x 0.15 (string-width spell-name (:bold fonts) 10))
                                (- 11.0 y 0.08)
                                (- box-width 0.3)
-                               (- box-height 0.2))))))))))
+                               (- box-height 0.2)))
+           ;; Blank back — a large, CENTERED logo (~80% of the card). logo-img is
+           ;; the resource path chosen by the caller (grayscale or solid-black DMV
+           ;; mark), or nil when the logo is turned off. Both are hi-res, full-bleed
+           ;; 997x997 PNGs, NOT the front's tiny 22x30 card-logo.png (which pixelates
+           ;; and is cropped in-source). draw-imagex fits to the box preserving
+           ;; aspect and centers it.
+           (when logo-img
+             (draw-imagex cs
+                          (img logo-img)
+                          (+ x (* box-width 0.1))
+                          (+ y (* box-height 0.1))
+                          (* box-width 0.8)
+                          (* box-height 0.8)))))))))
 
-(defn print-spells [cs document box-width box-height spells page-number print-spell-card-dc-mod?]
+(defn print-spells [cs document fonts img box-width box-height spells page-number print-spell-card-dc-mod? bw? bw-faded?]
   (let [num-boxes-x (int (/ 8.5 box-width))
         num-boxes-y (int (/ 11.0 box-height))
         total-width (* num-boxes-x box-width)
@@ -457,13 +575,8 @@
         remaining-width (- 8.5 total-width)
         margin-x (/ remaining-width 2)
         remaining-height (- 11.0 total-height)
-        margin-y (/ remaining-height 2)
-        fonts (load-fonts document)]
-    (with-open [card-logo-img-stream (io/input-stream (io/resource "public/image/card-logo.png"))
-                over-img-stream (io/input-stream (io/resource "public/image/clockwise-rotation.png"))]
-      (let [card-logo-img (LosslessFactory/createFromImage document (ImageIO/read card-logo-img-stream))
-            over-img (LosslessFactory/createFromImage document (ImageIO/read over-img-stream))]
-        (draw-grid cs 2.5 3.5)
+        margin-y (/ remaining-height 2)]
+    (draw-grid cs 2.5 3.5)
         (draw-text cs
                    (str "Page " (inc page-number))
                    (:italic fonts)
@@ -518,12 +631,10 @@
                                    (- 11.0 y 0.55)
                                    (- box-width 0.24)
                                    0.5))
-               (draw-imagex cs
-                            card-logo-img
-                            (+ x 1.9)
-                            (+ y 0.02)
-                            1.0
-                            0.25)
+               (let [card-logo (img (str "public/image/card-logo" (when bw? "-bw") ".png"))]
+                 (if (and bw? bw-faded?)
+                   (draw-imagex-alpha cs card-logo (+ x 1.9) (+ y 0.02) 1.0 0.25 0.4)
+                   (draw-imagex cs card-logo (+ x 1.9) (+ y 0.02) 1.0 0.25)))
                (draw-text-to-box cs
                                  spell-name
                                  (:bold fonts)
@@ -552,7 +663,7 @@
                                  0.25)
                (when casting-time
                  (draw-spell-field cs
-                                   document
+                                   img
                                    "magic-swirl"
                                    (str (abbreviate-casting-time
                                          (first
@@ -560,16 +671,18 @@
                                            casting-time
                                            #","))))
                                    (+ x 0.12)
-                                   (- 11.0 y 0.45)))
+                                   (- 11.0 y 0.45)
+                                   bw? bw-faded?))
                (when range
                  (draw-spell-field cs
-                                   document
+                                   img
                                    "arrow-dunk"
                                    (abbreviate-range range)
                                    (+ x 0.62)
-                                   (- 11.0 y 0.45)))
+                                   (- 11.0 y 0.45)
+                                   bw? bw-faded?))
                (draw-spell-field cs
-                                 document
+                                 img
                                  "shiny-purse"
                                  (s/join
                                   ","
@@ -583,23 +696,23 @@
                                      :somatic "S"
                                      :material "M"})))
                                  (+ x 1.12)
-                                 (- 11.0 y 0.45))
+                                 (- 11.0 y 0.45)
+                                 bw? bw-faded?)
                (when duration
                  (draw-spell-field cs
-                                   document
+                                   img
                                    "sands-of-time"
                                    (abbreviate-duration duration)
                                    (+ x 1.62)
-                                   (- 11.0 y 0.45)))
+                                   (- 11.0 y 0.45)
+                                   bw? bw-faded?))
                (when (seq remaining-desc-lines)
-                 (draw-imagex cs
-                              over-img
-                              (+ x 2.3)
-                              (+ y 3.3)
-                              0.15
-                              0.15))
+                 (let [recharge (img (str "public/image/clockwise-rotation" (when bw? "-bw") ".png"))]
+                   (if (and bw? bw-faded?)
+                     (draw-imagex-alpha cs recharge (+ x 2.3) (+ y 3.3) 0.15 0.15 0.4)
+                     (draw-imagex cs recharge (+ x 2.3) (+ y 3.3) 0.15 0.15))))
                {:remaining-lines remaining-desc-lines
-                :spell-name spell-name}))))))))
+                :spell-name spell-name}))))))
 
 #_{:clj-kondo/ignore [:unused-private-var]}
 (defn- create-monsters-pdf

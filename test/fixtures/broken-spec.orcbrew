@@ -1,0 +1,1 @@
+{"Spec Break Pack" {"not-a-keyword" {:foo "bar"} :orcpub.dnd.e5/spells {:bad-spell {:key :bad-spell :name "Bad Spell" :option-pack "Spec Break Pack" :level :not-a-number}}}}

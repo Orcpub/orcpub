@@ -1,3 +1,5 @@
+;; JVM (.clj): pure event-handler logic tests, incl. toggle nil-hygiene. The
+;; cljs re-frame toggle-corruption integration lives in events-test (toggle-stress).
 (ns orcpub.dnd.e5.event-handlers-test
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.data]
@@ -6,6 +8,7 @@
             [orcpub.entity.strict :as se]
             [orcpub.dnd.e5.template :as t5e]
             [orcpub.dnd.e5.event-handlers :as eh]
+            [orcpub.dnd.e5.character.equipment :as char-equip5e]
             [orcpub.dnd.e5.character.random :as char-rand]))
 
 (def character
@@ -264,3 +267,65 @@
     (is (= [nil nil ::char-rand/chondathan] (eh/parse-name-query "chondathan name")))
     (is (= [::char-rand/female nil ::char-rand/chondathan] (eh/parse-name-query "female chondathan name")))
     (is (= [::char-rand/female ::char-rand/elf nil] (eh/parse-name-query "female elf name")))))
+
+;; ---- toggle nil-hygiene: root-level toggle guards (folded from the .cljc) ----
+;; Toggles must produce CLEAN values (true/false, or [] on full deselect) and
+;; never leave a stray nil that would serialize into exported EDN (and later trip
+;; the import-time nil cleaner). Locked-in finding: the live toggles are already
+;; clean — select/deselect is conj/remove-by-key ([] when empty, not nil) and the
+;; boolean toggles use (update-in path not) (true/false, never nil). These fail if
+;; a future change swaps a toggle for a raw checkbox value (which CAN be nil).
+
+(defn deep-nil?
+  "True if any map value, or any collection element, anywhere in `x` is nil —
+   i.e. a stray nil that would serialize into the exported EDN."
+  [x]
+  (cond
+    (map? x) (boolean (or (some nil? (vals x)) (some deep-nil? (vals x))))
+    (coll? x) (boolean (or (some nil? x) (some deep-nil? x)))
+    :else false))
+
+(deftest deep-nil-detector-sanity
+  (is (not (deep-nil? {:a 1 :b [true false]})))
+  (is (deep-nil? {:a nil}))
+  (is (deep-nil? {:a {:b nil}}))
+  (is (deep-nil? [1 nil 2]))
+  (is (not (deep-nil? []))))
+
+(deftest multi-select-toggle-stays-clean
+  (let [k :athletics
+        opt {::entity/key k}
+        f (eh/update-multi-select opt k)]
+    (testing "select from empty adds the option"
+      (is (= [opt] (f []))))
+    (testing "deselect the last option returns [] — NOT nil"
+      (is (= [] (f [opt])))
+      (is (vector? (f [opt]))))
+    (testing "repeated on/off never leaves a stray nil"
+      (doseq [s (take 12 (iterate f []))]
+        (is (not (deep-nil? s)) (str "stray nil after toggling: " (pr-str s)))))
+    (testing "a nil or corrupt (map) parent recovers to [opt], not nil"
+      (is (= [opt] (f nil)))
+      (is (= [opt] (f {:corrupt true}))))))
+
+(deftest single-select-toggle-stays-clean
+  (let [opt {::entity/key :foo}]
+    (testing "multiselect wraps in a vector; single returns the option"
+      (is (= [opt] ((eh/update-single-select true opt) nil)))
+      (is (= opt ((eh/update-single-select false opt) nil))))
+    (testing "no stray nil either way"
+      (is (not (deep-nil? ((eh/update-single-select true opt) nil))))
+      (is (not (deep-nil? ((eh/update-single-select false opt) nil)))))))
+
+(deftest not-toggle-pattern-never-nil
+  ;; The shape used by toggle-inventory-item-equipped / toggle-*-equipped /
+  ;; toggle-plugin(-item): (update-in m path not). Absent reads as nil, but `not`
+  ;; turns it into true — never leaves a nil — and it alternates cleanly after.
+  (let [path [::entity/options :inv 0 ::entity/value ::char-equip5e/equipped?]
+        states (take 6 (iterate #(update-in % path not) {}))]
+    (testing "absent -> true, then strictly alternates true/false"
+      (is (= [nil true false true false true] (map #(get-in % path) states))))
+    (testing "the toggled value is never nil after the first toggle"
+      (doseq [c (rest states)]
+        (is (boolean? (get-in c path)))
+        (is (not (deep-nil? (update-in c path identity))))))))

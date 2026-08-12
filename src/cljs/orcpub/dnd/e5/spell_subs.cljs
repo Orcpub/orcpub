@@ -40,52 +40,92 @@
  (fn [db _]
    (get db :plugins)))
 
+;; Ephemeral overlay for a SHARED character being viewed: content that arrived
+;; embedded in a share link (view-once) lives here, NOT in :plugins, so it is
+;; never persisted to the recipient's library and vanishes on reload without the
+;; link. The content-lookup subs below fold it in (last, so it wins key
+;; collisions for the shared view); the library manager / export read :plugins
+;; directly and never see it. See orcpub.dnd.e5.share-url / share-bundle.
+(reg-sub
+ ::e5/shared-plugins
+ (fn [db _]
+   (get db :shared-plugins)))
+
+;; Summary for the shared-content banner: {:count n :collisions [...]} while a
+;; shared character with embedded homebrew is being viewed, else nil.
+(reg-sub
+ ::e5/shared-content-info
+ (fn [db _]
+   (get db :shared-content-info)))
+
+;; The name-keyed quarantine map ({source-name → bad-source}) loaded at
+;; boot, kept in sync by the repair event. Drives the quarantine repair panel.
+(reg-sub
+ ::e5/quarantined-plugins
+ (fn [db _]
+   (get db :quarantined-plugins)))
+
+(defn- process-plugin-vals
+  "Filter out malformed/disabled plugin data so a bad entry can't break the
+   subscription chain (e.g. the class dropdown). Returns a seq of clean
+   {content-type {key def}} maps."
+  [plugins]
+  (keep
+   (fn [p]
+     (try
+       (when (map? p)
+         (into
+          {}
+          (keep
+           (fn [[type-k type-m]]
+             (when (and type-k (or (nil? type-m) (map? type-m)))
+               [type-k
+                (if (map? type-m)
+                  (into
+                   {}
+                   (keep
+                    (fn [[k v]]
+                      ;; Only include if v is a map and not disabled
+                      (when (and (map? v) (not (:disabled? v)))
+                        [k v]))
+                    type-m))
+                  type-m)]))
+           p)))
+       (catch js/Error e
+         (js/console.warn "Skipping malformed plugin data:" (pr-str p) e)
+         nil)))
+   (filter (fn [p] (and (map? p) (not (:disabled? p))))
+           (vals plugins))))
+
 (reg-sub
  ::e5/plugin-vals
  :<- [::e5/plugins]
- (fn [plugins]
-   ;; Defensive handling: filter out malformed plugin data to prevent
-   ;; subscription chain failures that can break the class dropdown
-   (let [result (keep
-                 (fn [p]
-                   (try
-                     (when (map? p)
-                       (into
-                        {}
-                        (keep
-                         (fn [[type-k type-m]]
-                           (when (and type-k (or (nil? type-m) (map? type-m)))
-                             [type-k
-                              (if (map? type-m)
-                                (into
-                                 {}
-                                 (keep
-                                  (fn [[k v]]
-                                    ;; Only include if v is a map and not disabled
-                                    (when (and (map? v) (not (:disabled? v)))
-                                      [k v]))
-                                  type-m))
-                                type-m)]))
-                         p)))
-                     (catch js/Error e
-                       (js/console.warn "Skipping malformed plugin data:" (pr-str p) e)
-                       nil)))
-                 (filter (fn [p] (and (map? p) (not (:disabled? p))))
-                         (vals plugins)))]
-     result)))
+ :<- [::e5/shared-plugins]
+ (fn [[plugins shared] _]
+   ;; Shared (view-once) content is appended LAST so it wins key collisions
+   ;; against the recipient's own library for the shared view only.
+   (concat (process-plugin-vals plugins)
+           (process-plugin-vals shared))))
 
 ;; Subscription that preserves source names when extracting content from plugins.
 ;; This is needed for disambiguation when multiple sources have same-named content.
+(defn- process-plugins-with-sources [plugins]
+  ;; Returns seq of [source-name plugin-data] pairs, skipping disabled/malformed.
+  (keep
+   (fn [[source-name plugin-data]]
+     (when (and (map? plugin-data) (not (:disabled? plugin-data)))
+       [source-name plugin-data]))
+   plugins))
+
 (reg-sub
  ::e5/plugins-with-sources
  :<- [::e5/plugins]
- (fn [plugins]
-   ;; Returns seq of [source-name plugin-data] pairs
-   (keep
-    (fn [[source-name plugin-data]]
-      (when (and (map? plugin-data) (not (:disabled? plugin-data)))
-        [source-name plugin-data]))
-    plugins)))
+ :<- [::e5/shared-plugins]
+ (fn [[plugins shared] _]
+   ;; Shared (view-once) sources appended LAST so they win key collisions for
+   ;; the shared view only.
+   (concat (process-plugins-with-sources plugins)
+           (process-plugins-with-sources shared))))
 
 (reg-sub
  ::bg5e/plugin-backgrounds
@@ -451,6 +491,9 @@
           :when (and (map? subclass-data) (not (:disabled? subclass-data)))]
       [source-name subclass-key subclass-data]))))
 
+;; :name on plugin classes is canonical; do not mutate it to embed source
+;; (the source label is carried separately as :plugin-source). Mutating :name
+;; causes downstream name-to-kw to derive shifted keys.
 (reg-sub
  ::classes5e/plugin-classes
  :<- [::e5/plugins-with-sources]
@@ -459,26 +502,14 @@
  :<- [::selections5e/selection-map]
  (fn [[plugins-with-sources spell-lists spells-map selection-map]]
    ;; Defensive handling: skip malformed classes rather than breaking
-   ;; Also includes source name for disambiguation when multiple sources
-   ;; have classes with the same name (e.g., two different "Artificer" classes)
+   ;; Source name carried as :plugin-source for display; never folded into :name.
    (keep
     (fn [[source-name class-key class]]
       (try
         (when (and (map? class) class-key)
-          (let [;; Ensure the class has its key set (the map key is the authoritative key)
-                class-with-key (assoc class :key class-key)
-                levels (make-levels spell-lists spells-map selection-map class-with-key)
-                ;; Add source name to class name for disambiguation
-                ;; Only if source name is meaningful (not default)
-                display-name (if (and source-name
-                                      (not= source-name "Default Option Source"))
-                               (str (:name class) " (" source-name ")")
-                               (:name class))]
+          (let [class-with-key (assoc class :key class-key)
+                levels (make-levels spell-lists spells-map selection-map class-with-key)]
             (assoc class-with-key
-                   :name display-name
-                   ;; :name is display-only (may include source suffix).
-                   ;; All internal lookups use :key, never :name.
-                   :original-name (:name class)
                    :plugin-source source-name
                    :modifiers (opt5e/plugin-modifiers (:props class)
                                                       class-key)

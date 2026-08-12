@@ -1,0 +1,44 @@
+{:orcpub.dnd.e5/classes
+ {:artificer
+  {:key :artificer
+   :name "Artificer"
+   :option-pack "Homebrew Pack A"
+   :hit-die 8
+   :ability-increase-levels [4 8 12 16 19]
+   :subclass-level 3
+   :subclass-title "Artificer Specialist"
+   :traits [{:name "Magical Tinkering" :level 1 :description "You learn to channel small sparks of magic into ordinary items."}
+            {:name "Infuse Item" :level 2 :description "You gain the ability to imbue items with magical properties."}]
+   :level-modifiers []}
+  :monster-hunter
+  {:key :monster-hunter
+   :name "Monster Hunter"
+   :option-pack "Homebrew Pack A"
+   :hit-die 10
+   :ability-increase-levels [4 8 12 16 19]
+   :subclass-level 3
+   :subclass-title "Monster Hunter Order"
+   :traits [{:name "Hunter's Bane" :level 1 :description "You gain an edge when tracking certain creature types."}]
+   :level-modifiers []}}
+ :orcpub.dnd.e5/subclasses
+ {:artillerist
+  {:key :artillerist
+   :name "Artillerist"
+   :class :artificer
+   :option-pack "Homebrew Pack A"
+   :level-modifiers [{:level 3 :modifiers []}]}
+  :battle-smith
+  {:key :battle-smith
+   :name "Battle Smith"
+   :class :artificer
+   :option-pack "Homebrew Pack A"
+   :level-modifiers [{:level 3 :modifiers []}]}}
+ :orcpub.dnd.e5/races
+ {:custom-lineage
+  {:key :custom-lineage
+   :name "Custom Lineage"
+   :option-pack "Homebrew Pack A"
+   :speed 30
+   :size "Medium"
+   :abilities {}
+   :traits [{:name "Variable Trait" :description "Choose one feat for which you qualify."}]}}}

@@ -56,14 +56,35 @@
   (or (env :app-email-sender-name) (str app-name " Team")))
 
 (def email-from-address
-  "From address for outbound emails. Falls back to env EMAIL_FROM_ADDRESS."
-  (or (env :email-from-address) "no-reply@orcpub.com"))
+  "From address for outbound emails (verification, password reset, reports).
+   Self-hosters MUST set EMAIL_FROM_ADDRESS to an address on a domain they
+   control and have verified with their mail provider (SES/SMTP), or outbound
+   mail will be rejected. The fallback is an RFC-2606 reserved placeholder — it
+   is intentionally non-deliverable so a misconfigured instance fails loudly
+   instead of silently sending from a real domain it does not own."
+  (or (env :email-from-address) "no-reply@example.com"))
+
+(def email-configured?
+  "Whether outbound email can actually be sent — true only when the operator has
+   set a real from-address (not the placeholder). Email-dependent features
+   should check this and degrade gracefully (e.g. hide a 'send' button, keep the
+   copyable fallback) rather than attempt a doomed send."
+  (let [from (or (env :email-from-address) "")]
+    (and (seq from) (not= from "no-reply@example.com"))))
 
 ;; ─── Support & Help ──────────────────────────────────────────────
 
 (def support-email
   "Contact email shown on privacy page, error messages, etc. Empty = hidden."
   (or (env :app-support-email) ""))
+
+(def report-recipient
+  "Where user-submitted 'character won't load' reports are emailed. Prefers the
+   public support address (APP_SUPPORT_EMAIL); falls back to the admin error inbox
+   (EMAIL_ERRORS_TO) that the app's error notifications already use — so an operator
+   who has configured error reporting needs no new setting. Empty (neither set) =
+   reports can't send and the UI offers the copyable report instead."
+  (if (seq support-email) support-email (or (env :email-errors-to) "")))
 
 (def help-url
   "URL for the help/FAQ page. Empty string = hidden."

@@ -12,6 +12,8 @@
   (:require [cljs.test :refer-macros [deftest testing is use-fixtures]]
             [re-frame.core :as rf]
             [re-frame.db :refer [app-db]]
+            [cljs-http.client :as http]
+            [cljs.core.async :as async]
             [orcpub.dnd.e5.character :as char5e]
             [orcpub.dnd.e5.party :as party5e]
             [orcpub.dnd.e5.folder :as folder5e]
@@ -99,13 +101,19 @@
       (is (= [] result)))))
 
 (deftest user-stale-user-no-token-still-guarded
-  (testing "user key present but no token → still skips HTTP"
-    ;; This was the accidental-guard case: [:user] existed but [:user :token]
-    ;; didn't, so the old guard happened to block. The new guard checks the
-    ;; canonical path [:user-data :token] which is authoritative.
+  (testing "a stale :user key with no token must NOT trigger an HTTP fetch"
+    ;; REGRESSION GUARD, rewritten to assert the right thing. The HTTP fetch is
+    ;; gated on [:user-data :token] (canonical, same as auth-headers); a leftover
+    ;; [:user] key (no :token) must not slip past it. The OLD assertion
+    ;; `(= [] result)` was WRONG: the :user sub passes through `(get db :user [])`,
+    ;; so a populated :user returns that map, not [] — it never tested the guard.
+    ;; Assert the guard DIRECTLY: http/get is never called.
     (reset! app-db {:user {:name "stale-user"}})
-    (let [result @(rf/subscribe [:user])]
-      (is (= [] result)))))
+    (let [called? (atom false)]
+      (with-redefs [http/get (fn [& _] (reset! called? true) (async/chan))]
+        (let [result @(rf/subscribe [:user])]
+          (is (false? @called?) "no token → no HTTP, despite the stale :user key")
+          (is (= {:name "stale-user"} result) "sub passes the db value through unchanged"))))))
 
 (deftest user-with-token-returns-default
   (testing "with token, subscription fires (returns default until HTTP resolves)"

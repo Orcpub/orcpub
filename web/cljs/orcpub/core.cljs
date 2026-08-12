@@ -111,7 +111,13 @@
         query-string js/window.location.search
         query-map (query-map query-string)]
     [:div
-     [view (assoc route-params :query query-map)]
+     ;; App-root error boundary (goal #1: never black-screen). Any throw in any
+     ;; page is caught here as a last resort; finer boundaries below catch closer
+     ;; and give better messages first. Keyed by route so navigating clears it.
+     ^{:key handler}
+     [views/error-boundary
+      (fn [error stack retry] [views/app-error-fallback error stack retry])
+      [view (assoc route-params :query query-map)]]
      [conflict-views/import-log-overlay]]))
 
 ;; Verify auth token on startup (replaces @(subscribe [:user false]) side-effect)

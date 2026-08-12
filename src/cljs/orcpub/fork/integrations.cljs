@@ -9,7 +9,13 @@
    Companion to integrations.clj (server-side head tags).
    Server-side loads third-party scripts in <head>;
    this namespace provides the in-app component hooks."
-  (:require [orcpub.fork.branding :as branding]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch]]
+            [orcpub.dnd.e5.character :as char5e]
+            [orcpub.dnd.e5.magic-items :as mi5e]
+            [orcpub.dnd.e5.share-bundle :as sb]
+            [orcpub.dnd.e5.share-url :as share-url]
+            [orcpub.fork.branding :as branding]
             [orcpub.route-map :as routes]))
 
 ;; ─── Page View Tracking ─────────────────────────────────────────
@@ -95,33 +101,141 @@
   [_user-tier]
   nil)
 
-;; ─── Share Links ─────────────────────────────────────────────
-;; Character sharing links. Default provides a single email share.
-;; Fork overrides: add direct links, frame support, etc.
+;; ─── Sharing ─────────────────────────────────────────────────
+;; People share a character by sending its link (WhatsApp, Discord,
+;; a DM), so the primary action is "copy the link" — not "open my
+;; mail client". On browsers that expose the native share sheet
+;; (navigator.share — mobile and most modern desktop browsers), we
+;; also offer "Share", which hands the URL to the OS so the user can
+;; pick WhatsApp/Messages/Mail/etc. directly.
+;; Fork overrides: add frame support, per-network buttons, etc.
+
+(defn- char-url
+  "Absolute, shareable URL for a character page (dynamic protocol/host/port
+   so it works on localhost, LAN, and prod without hardcoding a domain)."
+  [id]
+  (str js/window.location.protocol "//"
+       js/window.location.hostname
+       (when-let [p js/window.location.port] (when (seq p) (str ":" p)))
+       (routes/path-for routes/dnd-e5-char-page-route :id id)))
+
+(defn- exec-copy-fallback!
+  "Clipboard copy for non-secure contexts where navigator.clipboard is
+   absent (plain http). Returns true on success."
+  [text]
+  (let [ta (js/document.createElement "textarea")]
+    (set! (.-value ta) text)
+    (set! (.. ta -style -position) "fixed")
+    (set! (.. ta -style -opacity) "0")
+    (js/document.body.appendChild ta)
+    (.select ta)
+    (let [ok (try (js/document.execCommand "copy") (catch :default _ false))]
+      (js/document.body.removeChild ta)
+      ok)))
+
+(defn- copy-to-clipboard!
+  "Copy text, then call (on-done success?). Prefers the async Clipboard API,
+   falls back to execCommand where it isn't available."
+  [text on-done]
+  (if (some-> js/navigator .-clipboard)
+    (-> (.writeText js/navigator.clipboard text)
+        (.then #(on-done true))
+        (.catch #(on-done (exec-copy-fallback! text))))
+    (on-done (exec-copy-fallback! text))))
+
+(defn- native-share?
+  "True when the browser exposes the OS share sheet."
+  []
+  (boolean (some-> js/navigator .-share)))
+
+(defn share-controls
+  "Reactive share cluster for a character: Copy link (+ native Share where the
+   browser supports it), both carrying a link with the character's homebrew
+   embedded in the URL fragment (share-bundle -> share-url). The embedded URL is
+   recomputed only when the character or plugins actually change (identical?
+   guard, so it is not rebuilt on every render), which keeps it ready
+   synchronously when a button is clicked — gesture-safe for the native share
+   sheet and the async clipboard alike. Falls back to the plain character URL for
+   a vanilla character, while a payload is still encoding, or when the homebrew is
+   too big to fit in a link (:file tier — the recipient then needs the .orcbrew)."
+  [id]
+  (let [state (r/atom {:tier :plain :url nil :copied? false})
+        prev  (atom {})]
+    (fn [id]
+      (let [character @(subscribe [:character])
+            plugins   @(subscribe [:plugins])
+            raw-items @(subscribe [::mi5e/custom-items])
+            char-name @(subscribe [::char5e/character-name id])
+            base      (char-url id)]
+        ;; Recompute the embedded URL only when inputs change (identical? = O(1)).
+        (when (or (not (identical? character (:character @prev)))
+                  (not (identical? plugins (:plugins @prev)))
+                  (not (identical? raw-items (:raw-items @prev))))
+          (reset! prev {:character character :plugins plugins :raw-items raw-items})
+          (let [plugins-bundle (sb/extract-bundle character plugins)
+                ;; Match by the item's REAL expanded key(s) — via the app's own
+                ;; expand, never a hand-rolled name-to-kw — so keys line up on both
+                ;; sides by construction.
+                items (sb/used-custom-items character (or raw-items [])
+                                            #(mi5e/expand-magic-items [%]))
+                container {:plugins plugins-bundle :custom-items items}]
+            (if (and (empty? plugins-bundle) (empty? items))
+              (swap! state assoc :tier :plain :url base)
+              (do
+                (swap! state assoc :tier :working :url base)
+                (-> (share-url/build-share-payload container)
+                    (.then (fn [{:keys [tier payload]}]
+                             (swap! state assoc
+                                    :tier tier
+                                    :url (if payload (str base "#c=" payload) base)))))))))
+        (let [{:keys [tier url copied?]} @state
+              url  (or url base)
+              working? (= tier :working)
+              ;; Size caveats, shown once on a successful action. The full content
+              ;; always rides along — we never strip it — so notices are only about
+              ;; link length / transport, never about lost data.
+              note (fn []
+                     (case tier
+                       :long (dispatch [:show-message
+                                        "Link copied. It's a long link — some apps (Discord, SMS) can cut it off; if the recipient sees missing content, send them the .orcbrew file instead."])
+                       :file (dispatch [:show-message
+                                        "This character has too much custom content to fit in a link. A plain link was copied — share the .orcbrew file so the recipient gets the homebrew."])
+                       nil))]
+          [:span.flex.align-items-c
+           [:button.form-button.h-40.m-l-5.m-t-5.m-b-5
+            {:title "Copy a link to this character (custom content included)"
+             :disabled working?
+             :on-click (fn [_]
+                         (copy-to-clipboard!
+                          url
+                          (fn [ok]
+                            (when ok
+                              (swap! state assoc :copied? true)
+                              (note)
+                              (js/setTimeout #(swap! state assoc :copied? false) 1800)))))}
+            [:span [:i.fa.f-s-18 {:class (cond copied? "fa-check" working? "fa-spinner" :else "fa-link")}]]
+            [:span.m-l-5.header-button-text (cond copied? "Copied!" working? "Preparing…" :else "Copy link")]]
+           (when (native-share?)
+             [:button.form-button.h-40.m-l-5.m-t-5.m-b-5
+              {:title "Share this character (custom content included)"
+               :disabled working?
+               :on-click (fn [_]
+                           (-> (.share js/navigator
+                                       #js {:title (str (or char-name "D&D character") " — " branding/app-name)
+                                            :url url})
+                               (.then (fn [_] (note)))
+                               ;; user-cancelled / permission rejections are expected — swallow.
+                               (.catch (fn [_] nil))))}
+              [:span [:i.fa.f-s-18.fa-share-alt]]
+              [:span.m-l-5.header-button-text "Share"]])])))))
 
 (defn share-links
-  "Returns a seq of share-link hiccup elements for a character.
-   Default: single email share with dynamic protocol."
-  [id character-name]
-  [[:a.m-r-5.f-s-14
-    {:href (str "mailto:?subject=My%20" (js/encodeURIComponent branding/app-name) "%20Character%20"
-                character-name
-                "&body=" js/window.location.protocol "//"
-                js/window.location.hostname
-                (when-let [p js/window.location.port] (when (seq p) (str ":" p)))
-                (routes/path-for routes/dnd-e5-char-page-route :id id))}
-    [:i.fa.fa-envelope.m-r-5]
-    "share"]])
+  "Header share cluster (Copy link + native Share) carrying the character's
+   homebrew embedded in the link. Returned as a single button-cfg element."
+  [id _character-name]
+  [[share-controls id]])
 
 (defn share-link-www
-  "Direct www share link. Default: same as email share.
-   Fork overrides: add frame support, direct URL, etc."
+  "Single-element share cluster for the character-sheet header."
   [id]
-  [:a.m-r-5.f-s-14
-   {:href (str js/window.location.protocol "//"
-               js/window.location.hostname
-               (when-let [p js/window.location.port] (when (seq p) (str ":" p)))
-               (routes/path-for routes/dnd-e5-char-page-route :id id))
-    :target "_blank"}
-   [:i.fa.fa-link.m-r-5]
-   "www"])
+  [share-controls id])

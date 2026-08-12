@@ -698,11 +698,9 @@
  :args (spec/cat :raw-entity ::raw-entity :modifier-map ::t/template)
  :ret any?)
 
-(defn name-to-kw [name]
-  (-> name
-      s/lower-case
-      (s/replace #"\W" "-")
-      keyword))
+;; (Removed the dead `entity/name-to-kw` — it had zero callers and was a second,
+;; looser copy of `common/name-to-kw` that didn't strip apostrophes. Use
+;; `orcpub.common/name-to-kw`, which is the single guarded derivation.)
 
 (defn get-option-value-path [template entity path]
   (conj (get-entity-path template entity path) ::value))
