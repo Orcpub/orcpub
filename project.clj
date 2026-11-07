@@ -189,6 +189,8 @@
             "fig:build" ["run" "-m" "figwheel.main" "--" "--build-once" "dev"]
             "fig:prod" ["run" "-m" "figwheel.main" "--" "--build-once" "prod"]
             "fig:test" ["run" "-m" "figwheel.main" "--" "--build-once" "test"]
+            ;; Preview the character-load report email (no send) — email endpoint dev tool
+            "report-preview" ["with-profile" "+tools" "run" "-m" "orcpub.dev.report-preview"]
             ;; Single-command production build: clean → CLJS → uberjar.
             ;; clean runs first because :clean-targets includes
             ;; resources/public/js/compiled (the CLJS output dir).
@@ -207,7 +209,10 @@
             "prod-build" ^{:doc "Recompile code with prod profile."}
             ["externs"
              ["run" "-m" "figwheel.main" "--" "--build-once" "prod"]]}
-  :profiles {;; Legacy cljsbuild build configs — retained for lein figwheel (legacy
+  :profiles {;; Minimal profile to run dev/ command-line tools (e.g. report-preview)
+             ;; with base runtime deps but WITHOUT the heavy cljs/devtools :dev-config.
+             :tools {:source-paths ["dev"]}
+             ;; Legacy cljsbuild build configs — retained for lein figwheel (legacy
              ;; dev server) and reference. lein-cljsbuild PLUGIN has been removed;
              ;; prod CLJS builds now use figwheel-main (prod.cljs.edn / fig:prod).
              ;; The :cljsbuild map is inert data without the plugin loaded.
@@ -260,6 +265,13 @@
              ;; Composite: includes cljsbuild-config (build definitions) + dev-config
              ;; (deps, devtools overlays). No inline maps — lein warns against those.
              :dev          [:cljsbuild-config :dev-config]
+             ;; Opt-in for WSL2 (and any host reaching the dev server by IP): binds
+             ;; ::http/host to 0.0.0.0 via environ so a Windows browser can reach the
+             ;; WSL VM (localhost forwarding is flaky over WSL2). The default stays
+             ;; loopback for everyone else. Activate per-command, e.g.
+             ;;   lein with-profile +wsl fig:dev
+             ;;   lein with-profile +wsl fig:build
+             :wsl          {:env {:orcpub-http-host "0.0.0.0"}}
              ;; NOTE: :native-dev was for React Native builds (legacy, may be unused)
              :native-dev   {:dependencies [[cider/piggieback "0.5.3"]]
                             :source-paths ["src/cljs" "native/cljs" "src/cljc" "env/dev"]

@@ -100,3 +100,9 @@ cljsjs/
 
 # Local devcontainer setup (superseded by dotfiles)
 .devcontainer/local-setup.sh
+
+# Design handoff reference material (preserved on agents/develop, not committed to code branches)
+design_handoff_character_menus
+
+# Generated clojure-CLI cljs build artifact (regenerated from project.clj; lein/figwheel-main is canonical)
+/deps.edn

@@ -1,5 +1,5 @@
 (ns orcpub.dnd.e5.subs
-  (:require [re-frame.core :refer [reg-sub reg-sub-raw subscribe dispatch]]
+  (:require [re-frame.core :refer [reg-sub reg-sub-raw subscribe dispatch reg-event-db]]
             [orcpub.entity :as entity]
             [orcpub.entity.strict :as se]
             [orcpub.template :as t]
@@ -29,7 +29,7 @@
             [clojure.string :as s]
             [reagent.ratom :as ra]
             [cljs.core.async :refer [<!]]
-            [cljs-http.client :as http]
+            [orcpub.dnd.e5.http-safe :as http]
             [orcpub.dnd.e5.spell-subs])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -46,6 +46,11 @@
  :registration-form
  (fn [db [_]]
    (get db :registration-form)))
+
+(reg-sub
+ :builder-field-errors
+ (fn [db _]
+   (get db :builder-field-errors #{})))
 
 (reg-sub
  :username-taken?
@@ -515,15 +520,51 @@
                                            :id int-id)))]
               (dispatch [:set-loading false])
               (handle-api-response response
-                #(dispatch [::char5e/set-character
-                            int-id
-                            (char5e/from-strict (:body response))])
+                #(let [body (:body response)]
+                   (if (http/decode-failed? body)
+                     ;; Response was unreadable even after self-heal: don't feed
+                     ;; the marker to from-strict (that silently builds a blank
+                     ;; default character). Flag the load as failed so the
+                     ;; character page renders an in-place recovery panel
+                     ;; (delete / go to list) instead of a blank sheet.
+                     (dispatch [::char5e/set-character-load-error int-id body])
+                     (do (dispatch [::char5e/set-character-load-error int-id nil])
+                         (dispatch [::char5e/set-character int-id (char5e/from-strict body)]))))
                 :context (str "fetch character " int-id)))))
       (ra/make-reaction
        (fn []
          (if int-id
            (get-in @app-db [::char5e/character-map int-id] {})
            (get @app-db :character)))))))
+
+;; Records that a character's server response could not be decoded even after
+;; self-heal; the character page reads it to show an in-place recovery panel
+;; (with a copyable diagnostic report) instead of a blank sheet. `marker` is the
+;; http-safe decode-error map (carries the raw body + reader error); nil clears
+;; it on a subsequent successful load.
+(reg-event-db
+ ::char5e/set-character-load-error
+ (fn [db [_ id marker]]
+   (if marker
+     (assoc-in db [::char5e/character-load-errors id]
+               {:error (get marker http/error-key)
+                :raw   (get marker http/raw-key)})
+     (update db ::char5e/character-load-errors dissoc id))))
+
+(reg-sub
+ ::char5e/character-load-error?
+ (fn [db [_ id]]
+   (contains? (::char5e/character-load-errors db) (when id (js/parseInt id)))))
+
+(reg-sub
+ ::char5e/character-load-error-info
+ (fn [db [_ id]]
+   (get-in db [::char5e/character-load-errors (when id (js/parseInt id))])))
+
+(reg-sub
+ ::char5e/character-report-status
+ (fn [db [_ id]]
+   (get-in db [:character-report-status (when id (js/parseInt id))])))
 
 (reg-sub
  ::char5e/character-changed?
@@ -1077,6 +1118,11 @@
    (get-in db [:user-data :theme])))
 
 (reg-sub
+ ::show-class-source-suffix
+ (fn [db _]
+   (boolean (get-in db [:user-data :show-class-source-suffix]))))
+
+(reg-sub
  ::mi5e/builder-item
  (fn [db _]
    (::mi5e/builder-item db)))
@@ -1317,6 +1363,34 @@
  (fn [db _]
    (-> db ::char5e/exclude-spell-cards-by-dc-mod? not)))
 
+(reg-sub
+ ::char5e/print-card-back-logo?
+ (fn [db _]
+   ;; Positive flag, default off — card backs stay text-only unless opted in.
+   (boolean (::char5e/print-card-back-logo? db))))
+
+(reg-sub
+ ::char5e/card-back-logo-faded?
+ (fn [db _]
+   ;; Card-back logo treatment: default (false) = solid black; true = faded
+   ;; brand-orange watermark (color printers). Only meaningful when the logo is
+   ;; on and printer-friendly B&W mode is off.
+   (boolean (::char5e/card-back-logo-faded? db))))
+
+(reg-sub
+ ::char5e/print-bw?
+ (fn [db _]
+   ;; Printer-friendly monochrome: solid-black spell-card icons + forced
+   ;; solid-black card-back logo (no color anywhere). Default off.
+   (boolean (::char5e/print-bw? db))))
+
+(reg-sub
+ ::char5e/bw-faded?
+ (fn [db _]
+   ;; B&W icon style: default (false) = solid black with white-halo labels;
+   ;; true = faded grayscale icons. Only meaningful when print-bw? is on.
+   (boolean (::char5e/bw-faded? db))))
+
 
 (reg-sub
  ::char5e/print-character-sheet?
@@ -1423,6 +1497,16 @@
  :export-warning
  (fn [db _]
    (:export-warning db)))
+
+(reg-sub
+ :export-warning-edits
+ (fn [db _]
+   (get-in db [:export-warning :edits])))
+
+(reg-sub
+ :export-warning-show-as-is?
+ (fn [db _]
+   (get-in db [:export-warning :show-export-as-is?])))
 
 ;; ============================================================================
 ;; Missing Content Detection Subscriptions

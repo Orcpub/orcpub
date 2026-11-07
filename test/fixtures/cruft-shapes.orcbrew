@@ -1,0 +1,34 @@
+{"Cruft Shapes"
+ {:orcpub.dnd.e5/spells
+  {:test-cantrip
+   {:name "Test Cantrip"
+    :key :test-cantrip
+    :option-pack "Cruft Shapes"
+    :level 0
+    :school "evocation"
+    ;; false-cruft: every class the spell is NOT on is stored as false
+    ;; (the real shape from Faiths of the Forgotten Realms :searing-song, etc.).
+    ;; strip-export-blanks must drop the falses and keep the trues — and the
+    ;; result must still satisfy ::homebrew-spell (spell-lists needs >=1 true).
+    :spell-lists {:wizard true
+                  :cleric true
+                  :bard false
+                  :druid false
+                  :paladin false
+                  :ranger false
+                  :sorcerer false
+                  :warlock false}
+    :ritual false
+    :material false}}
+
+  :orcpub.dnd.e5/classes
+  {:test-sidekick
+   {;; nil-key + nil-val: the {nil nil} stray entry seen in real UA Sidekicks
+    ;; classes and the UA Artificer. Inert, but it exports forever until stripped.
+    nil nil
+    :name "Test Sidekick"
+    :key :test-sidekick
+    :option-pack "Cruft Shapes"
+    :hit-die 8
+    ;; more false-cruft in a nested prof map (toggled-off skills left as false).
+    :profs {:skill {:athletics true :stealth false :arcana false}}}}}}

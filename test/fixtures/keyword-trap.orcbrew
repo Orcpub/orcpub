@@ -1,0 +1,20 @@
+;; ============================================================================
+;; keyword-trap.orcbrew — a homebrew class whose NAME can't become a valid key.
+;;
+;; Grab this file and upload it via My Content -> Import. "9 Lives" derives the
+;; key :9-lives, which doesn't start with a letter — so this content used to
+;; import "successfully" and then its class would SILENTLY never appear in the
+;; character builder (no error, no explanation). Now the whole source is
+;; quarantined on import and surfaced in My Content with a "rename to restore"
+;; prompt — the same repair flow the boot loader uses. Rename "9 Lives" to
+;; something starting with a letter, click Repair & Restore, and the class
+;; becomes usable.
+;;
+;; Automated coverage: e2e/scenarios/import-keyword-trap-repair.spec.ts.
+;; ============================================================================
+{:orcpub.dnd.e5/classes
+ {:9-lives
+  {:name "9 Lives"
+   :key :9-lives
+   :option-pack "Keyword Trap Pack"
+   :hit-die 10}}}

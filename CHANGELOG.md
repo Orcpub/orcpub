@@ -1,7 +1,51 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-Format: per-commit entries grouped by category, newest first.
+## [Summer Patch] — 2026 (character-load resilience, homebrew salvage, PDF printing)
+
+Consolidates the June bug-patch bundle, the homebrew conflict-resolution/salvage
+work, and the summer additions (PDF printing, character-load recovery, spell-key
+reconciliation) into one release.
+
+### Fixed
+
+Character loading & display
+- **"A single colon is not a valid keyword" crash + self-heal** — a custom element saved with a blank or symbols-only name derived the empty keyword `:`, an unreadable token that crashed the whole character on load; key generation now guards the blank case, and an already-corrupt save is repaired in place on load (`ba80b78d`).
+- **An unreadable character recovers in place** — instead of a blank page it shows a recovery panel with a copyable diagnostic, and error messages persist until dismissed (`d50eaf87`).
+- **Character sheets no longer go blank** — an unrenderable section shows a recovery message; the rest of the sheet stays usable (`565c33c0`).
+- **The Features tab loads for every character**, a nameless trait shows "[Unnamed feature]" instead of crashing the name sort, and Hunter's Evasion is named (`2a6fde93`, `5c3b073f`, `dd65d66a`).
+- **Homebrew class source no longer poisons spell-selection keys** — the source label was folded into the class `:name`, so saved spells/cantrips vanished when it changed; keys now come from a stable class identity, and orphaned saves repair on load (`9a709c0d`, `fe549631`, `a3e26155`).
+- **Boolean toggles no longer corrupt data** and self-heal old damage (`1e9f27ec`); **non-ASCII name detection works in the browser** (`d9b23021`).
+
+Homebrew import / export / salvage
+- **"Rename all" resolves duplicate keys in one pass** instead of the 20 → 3 → 1 → 0 re-import crawl (`c037de78`).
+- **Multi-source paks survive an imperfect sub-source** — detection is structural (shape), not spec-validity, so one flawed sub-source no longer quarantines the whole pak (`c037de78`).
+- **Conflict resolution no longer nils out an item** — a redundant double-rename is now a no-op (`9df1b4ae`).
+- **Import can't report success it won't keep** — problems surface at import time against the loader's floor, and success fires only after the write persists (`c037de78`, `7782e831`).
+- **Dangling spell references render** with a key-derived name + edit link instead of a blank card, reported once per class (`a4dbfe19`, `73e75c9d`).
+- **Old-name spells in imported paks resolve** — 17 pre-2024 wizard-possessive keys (Leomund's, Tasha's, Bigby's…) map to their current SRD keys; loaded homebrew is never overridden (`cf1f4f1c`).
+- **Keyword-trap imports are caught and routed to repair** instead of silently vanishing (`d9b23021`); **unreadable storage is preserved** for recovery, not deleted (`eedffc08`); **quota-failed saves warn and offer a backup**.
+- **Readable import/export errors** — plain-English console messages, dedup shown as a log line (`eba28a9c`, `e512dc45`); **post-save export** and **autosave-on-empty-template** crashes fixed (`e3c9a9ee`).
+
+### Added
+
+Homebrew resilience & repair
+- **Per-entry salvage** — one bad entry no longer quarantines its whole source; valid items stay, broken ones are set aside for repair (`957e09ab`, `7782e831`, `c037de78`).
+- **Entry-level repair panel** in My Content — editable Name + Option-source per set-aside entry, Fix & Restore, and Discard (`d34007ff`, `c037de78`).
+- **Export runs the same checks as import** — duplicates/cleanups caught on the way out; raw/pretty export stays an unchecked escape hatch (`9df1b4ae`, `c037de78`).
+- **Resilient homebrew loading** with a My Content repair panel (`eedffc08`); **builder escape hatches** — draft export, refresh-safe WIP restore, "Save anyway" with placeholders, emergency raw export, Export & Auto-Fix (`eac350d0`, `e3c9a9ee`); **"Show homebrew source on class names" toggle** (`8f94a94c`); **fill-in dialog on export** with live field guidance (`1547cd69`, `22172adb`).
+
+PDF & printing
+- **Card-back logo** — "Print logo on card backs" under a new Appearance section; the mark redrawn to print legibly (solid black, filled letters), with a faded-color option for color printers (`e8e560a3`, `99e20389`, `d0f2bfd8`).
+- **Printer-friendly (black & white) spell cards** — the baked-red casting/range/component/duration/recharge icons render solid black with white-halo labels; a nested "faded grayscale icons" option offers a softer look (`cb51a4fa`, `dcc8d551`).
+
+Support
+- **Report a character that won't load** — from the recovery panel, an auth-gated one-click report (or copyable text) emails the support address, falling back to the existing error-notification inbox so no new config is needed; header-injection-safe, raw capped (`c2bc7d03`, `4fb40a20`, `b88d1413`).
+
+### Changed
+- **Import and export share one correction gate**, and the exported library is canonicalized so import → export → re-import is idempotent (`9df1b4ae`, `c037de78`).
+- **Quarantine granularity is per-entry**, backward-compatible with whole-source entries, with precise per-entry diagnostics (`957e09ab`, `7782e831`, `c037de78`).
+- **Source-less imported content lands in the real "Default Option Source"** instead of a phantom placeholder (`54f4e87d`).
+- **Save validation covers every required field** — dropdowns and multi-selects too (`e512dc45`); **save and load share one spec registry** so they can't drift (`ca977e0a`); normal exports strip meaningless blank flags; invalid-key errors are element-specific.
 
 ## [breaking/2026-stack-modernization]
 

@@ -67,7 +67,8 @@
   (let [pattern (re-pattern (str ".*" (s/lower-case filter-text) ".*"))]
     (filter
      (fn [x]
-       (re-matches pattern (s/lower-case (name-key x)))))))
+       ;; common/lower-case: an item with no name folds to "" (no match), not a crash
+       (re-matches pattern (common/lower-case (name-key x)))))))
 
 (defn filter-spells
   "Filters and sorts spells whose :name matches filter-text."

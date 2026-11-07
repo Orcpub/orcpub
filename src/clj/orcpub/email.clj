@@ -388,3 +388,78 @@
             (catch Exception e
               (println "ERROR: Failed to send error notification email:" (.getMessage e))
               nil)))))))
+;; ---------------------------------------------------------------------------
+;; User-initiated "this character won't load" report
+;; ---------------------------------------------------------------------------
+
+(def ^:private report-throttle (atom {}))
+(def ^:private report-throttle-window-ms (* 10 60 1000)) ; one report per user+char / 10 min
+
+(def ^:private max-report-raw-chars 100000)
+
+(defn- header-safe
+  "Strip CR/LF and other control chars from a client-supplied value so it can't
+   inject extra email headers (Bcc:, Subject:, ...) when placed in the Subject or
+   an address header. Collapses runs of control chars to a single space."
+  [s]
+  (some-> s str (s/replace #"[\p{Cntrl}]+" " ") s/trim))
+
+(defn character-report-message
+  "PURE: the exact postal message map for a character-load report — no send, no
+   guards. Extracted so the send path AND dev/test tooling compose the identical
+   email (see orcpub.dev.report-preview). char-id (client-supplied) is sanitized
+   before it reaches the subject, user-email before the cc, and the raw blob is
+   capped so a hostile client can't inject headers or send an unbounded body."
+  [{:keys [char-id user-email error raw]}]
+  (let [char-id*    (header-safe char-id)
+        user-email* (header-safe user-email)
+        raw-str     (str raw)
+        raw*        (if (> (count raw-str) max-report-raw-chars)
+                      (str (subs raw-str 0 max-report-raw-chars)
+                           "\n…[truncated " (- (count raw-str) max-report-raw-chars) " chars]")
+                      raw-str)
+        body (str "A user reported a character that could not be loaded.\n\n"
+                  "Character ID: " char-id* "\n"
+                  "Reported by:  " (or user-email* "unknown") "\n"
+                  "Error:        " error "\n\n"
+                  "--- raw character data ---\n" raw*)]
+    (cond-> {:from    (str branding/email-sender-name " <" (emailfrom) ">")
+             :to      branding/report-recipient
+             :subject (str branding/app-name " — character load error (id " char-id* ")")
+             :body    [{:type "text/plain" :content body}]}
+      (not (s/blank? user-email*)) (assoc :cc user-email*))))
+
+(defn character-report-block-reason
+  "Why a report would NOT send, or nil if it would proceed. Reads the branding
+   config and the throttle atom (does not mutate). Exposed so the dev preview can
+   show the gate decision without sending."
+  [{:keys [char-id user-email]}]
+  (let [now (System/currentTimeMillis)]
+    (cond
+      (not branding/email-configured?)     :email-not-configured
+      (s/blank? branding/report-recipient) :no-recipient
+      (when-let [t (get @report-throttle [user-email char-id])]
+        (< (- now t) report-throttle-window-ms)) :throttled
+      :else nil)))
+
+(defn send-character-report
+  "Emails a user-submitted 'character could not be loaded' report (id, reader
+   error, raw undecodable data) to the configured support address, cc'ing the
+   reporting user. Returns {:sent? true} on success, else
+   {:sent? false :reason <kw>} — when email isn't configured, no support address
+   is set, the same user+character was reported within the throttle window, or
+   the send failed — so the caller can tell the user to use the copyable report."
+  [{:keys [char-id user-email] :as report}]
+  (if-let [reason (character-report-block-reason report)]
+    {:sent? false :reason reason}
+    (do
+      (swap! report-throttle assoc [user-email char-id] (System/currentTimeMillis))
+      (try
+        (let [result (postal/send-message (email-cfg) (character-report-message report))]
+          (if (= :SUCCESS (:error result))
+            {:sent? true}
+            (do (println "WARNING: character report email not sent:" (:error result))
+                {:sent? false :reason :send-failed})))
+        (catch Exception e
+          (println "ERROR: character report email failed:" (.getMessage e))
+          {:sent? false :reason :exception})))))

@@ -1,0 +1,80 @@
+;; ============================================================================
+;; broken-content.orcbrew — INTENTIONALLY BROKEN homebrew for QA.
+;;
+;; Grab this file and upload it via My Content -> Import to see how the app
+;; handles malformed content. It is valid EDN (so it imports), but nearly every
+;; item is broken in a different, realistic way — the kinds of damage a user or a
+;; hand-edit produces (published paks don't contain these; see the catalog
+;; survey). This content still LOADS (its keys are valid); it just contains
+;; garbage the builder has to tolerate. The app should degrade gracefully: use
+;; what it can, ignore what it can't, strip cruft on export — and NEVER crash,
+;; even when you USE the content in a character.
+;;
+;; (For the separate keyword-trap case — a name that can't become a valid key, so
+;; the whole source is quarantined for rename/repair — see keyword-trap.orcbrew.)
+;;
+;; Single-source shape (top-level = content-type keywords), like a real
+;; single-pack .orcbrew — the importer nests it under the source name you choose.
+;;
+;; Automated coverage: e2e/scenarios/broken-content-survives-use.spec.ts reads
+;; this exact file, then drives the broken class into a real character build.
+;; ============================================================================
+{:orcpub.dnd.e5/classes
+ {:broken-class
+  {:name "Broken Class"
+   :key :broken-class
+   :option-pack "Broken On Purpose"
+   :hit-die 8
+   ;; level-modifiers: mostly broken, one valid — the valid one must still apply.
+   :level-modifiers [{:type :weapon-prof}                    ; missing :value
+                     {:type nil :value :simple}              ; nil :type
+                     {:type :armor-prof :value :nonexistent} ; value that isn't real armor
+                     nil                                     ; a nil sitting in the vector
+                     {:type :num-attacks :level 5 :value 2}] ; the one VALID modifier
+   ;; selections: malformed choices the builder would try to render.
+   :selections [{:name nil :options nil}                    ; nameless, no options
+                {}                                          ; empty selection
+                {:min 3 :max 1}]}}                           ; min greater than max
+
+ :orcpub.dnd.e5/spells
+ {:dead-spell
+  {:name "Dead Spell"
+   :key :dead-spell
+   :option-pack "Broken On Purpose"
+   :level 1
+   :school "evocation"
+   :spell-lists {:wizard false :cleric false}}              ; no `true` -> not on any list
+  :cruft-spell
+  {nil nil                                                  ; {nil nil} stray entry
+   :name "Cruft Spell"
+   :key :cruft-spell
+   :option-pack "Broken On Purpose"
+   :level 0
+   :school "evocation"
+   :spell-lists {:wizard true :bard false :cleric false}    ; false-cruft (export strips)
+   :ritual false
+   :material false}}
+
+ :orcpub.dnd.e5/races
+ {:broken-race
+  {:name "Broken Race"
+   :key :broken-race
+   :option-pack "Broken On Purpose"
+   :abilities {:str "lots"}                                 ; wrong type (string, not a number)
+   :size nil                                                ; nil size
+   :traits [nil {:name nil}]}}                              ; a nil trait + a nameless trait
+
+ :orcpub.dnd.e5/subclasses
+ {:dangling-sub
+  {:name "Dangling Sub"
+   :key :dangling-sub
+   :option-pack "Broken On Purpose"
+   :class :no-such-class}}                                  ; parent class does not exist
+
+ :orcpub.dnd.e5/feats
+ {:broken-feat
+  {:name "Broken Feat"
+   :key :broken-feat
+   :option-pack "Broken On Purpose"
+   :props {:skill-prof {:athletics true :stealth false}}    ; false-cruft in props
+   :path-prereqs nil}}}                                     ; nil where a map is expected

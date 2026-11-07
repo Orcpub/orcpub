@@ -1599,7 +1599,73 @@
 
     [:.export-issue-missing
      {:color orange
-      :margin-left "8px"}]];concat-bracket
+      :margin-left "8px"}]
+
+    [:.export-edit-row
+     {:display :flex
+      :align-items :center
+      :margin-bottom "4px"
+      :gap "8px"}]
+
+    [:.export-edit-label
+     {:color "rgba(255,255,255,0.5)"
+      :font-size "11px"
+      :min-width "55px"
+      :text-transform :uppercase}]
+
+    [:.export-edit-input
+     {:background "rgba(255,255,255,0.1)"
+      :border "1px solid rgba(255,255,255,0.2)"
+      :border-radius "3px"
+      :color :white
+      :padding "4px 8px"
+      :font-size "12px"
+      :flex 1}]
+
+    [:.export-edit-select
+     {:background "#2c3445"
+      :border "1px solid rgba(255,255,255,0.2)"
+      :border-radius "3px"
+      :color :white
+      :padding "4px 8px"
+      :font-size "12px"}]
+
+    [:.export-edit-select.unfilled
+     {:border-color "#f0a100"}]
+
+    ;; A required builder field left empty when a save was attempted. Same amber
+    ;; cue as the export modal's unfilled dropdowns, for consistency.
+    [:.builder-field-unfilled
+     {:border "2px solid #f0a100 !important"
+      :background-color "rgba(240,161,0,0.10) !important"
+      :border-radius "3px"}]
+
+    ;; A required builder field that was filled but rejected (e.g. a name that
+    ;; doesn't start with a letter). Red, to read as "wrong" rather than "empty".
+    [:.builder-field-invalid
+     {:border "2px solid #d9534f !important"
+      :background-color "rgba(217,83,79,0.10) !important"
+      :border-radius "3px"}]
+
+    [:.export-bug-toggle
+     {:cursor :pointer
+      :color "rgba(255,255,255,0.2)"
+      :font-size "14px"
+      :padding "4px"
+      :transition "color 0.2s ease"}]
+
+    [:.export-bug-toggle:hover
+     {:color "rgba(255,255,255,0.5)"}]
+
+    [:.export-bug-toggle.active
+     {:color "rgba(255,255,255,0.5)"}]
+
+    [:.export-as-is-link
+     {:color "rgba(255,255,255,0.35)"
+      :font-size "11px"
+      :text-decoration :underline
+      :cursor :pointer
+      :margin-left "4px"}]];concat-bracket
    margin-lefts
    margin-tops
    widths

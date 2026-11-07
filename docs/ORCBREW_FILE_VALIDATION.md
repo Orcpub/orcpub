@@ -82,16 +82,24 @@ fresh copy if you have the original source.
 ```
 ⚠️ Invalid orcbrew file
 
-Validation errors found:
-  • at spells > fireball: Missing required field: :option-pack
-  • at races > dwarf: Invalid value format
-    Got: {:name "Dwarf", :option-pack nil}
+Validation errors found (2):
+  • At :orcpub.dnd.e5/spells > fireball: is missing the required field :option-pack
+  • At :orcpub.dnd.e5/races > dwarf: must be a text string naming the source/pack
+    Got: the item "Dwarf" (keys: [:name :option-pack])
 
 To recover data from this file, you can:
 1. Try progressive import (imports valid items, skips invalid ones)
 2. Check the browser console for detailed validation errors
 3. Export a fresh copy if you have the original source
 ```
+
+Validation messages are written in plain English rather than raw spec
+predicates. Each line tells you **where** the problem is (a readable breadcrumb
+of the offending key, with map-entry key/value selectors translated out),
+**what** was expected, and **what** was found (surfacing the item's `:name`/`:key`
+so you can locate it). Spec's redundant "must be true or false" twin from the
+`(or items boolean)` plugin shape is suppressed, and very long error lists are
+capped (with an "... and N more" note) so they don't flood the console.
 
 ### 3. **Progressive Import**
 
@@ -191,23 +199,28 @@ Export warnings for "My Pack":
 ```
 
 **On Import:**
-```javascript
-Import validation result: {
-  success: true,
-  imported_count: 23,
-  skipped_count: 2,
-  skipped_items: [
-    {key: :invalid-spell, errors: "..."},
-    {key: :bad-race, errors: "..."}
-  ]
-}
 
-Skipped invalid items:
-  :invalid-spell
-    Errors: Missing required field: :option-pack
-  :bad-race
-    Errors: Invalid value format
+A concise one-line summary is logged first (instead of dumping the entire
+parsed plugin), followed by the details for anything that needs attention:
+
+```javascript
+Import "My Pack": imported 23, skipped 2 | changes: 4 | conflicts: 0
+
+Skipped 2 invalid item(s):
+  • :invalid-spell
+Validation errors found (1):
+  • At :orcpub.dnd.e5/spells > invalid-spell: is missing the required field :option-pack
+
+  • :bad-race
+Validation errors found (1):
+  • At :orcpub.dnd.e5/races > bad-race: must be a text string naming the source/pack
+    Got: the item "Bad Race" (keys: [:name :option-pack])
 ```
+
+> **Note:** error details are passed to `console.error`/`console.warn` as a
+> single pre-formatted string. Passing ClojureScript collections as trailing
+> console arguments caused them to render as munged JS objects, hiding the
+> useful information — that is now fixed.
 
 ## How to Use
 
@@ -522,9 +535,9 @@ If you're building tools that generate `.orcbrew` files:
 
 ```clojure
 ;; Validate before export
-(require '[orcpub.dnd.e5.import-validation :as import-val])
+(require '[orcpub.dnd.e5.orcbrew-validation :as orcbrew-val])
 
-(let [result (import-val/validate-before-export my-plugin)]
+(let [result (orcbrew-val/validate-before-export my-plugin)]
   (if (:valid result)
     (export-to-file my-plugin)
     (handle-errors (:errors result))))

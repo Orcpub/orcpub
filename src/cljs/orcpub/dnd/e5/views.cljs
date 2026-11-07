@@ -1783,6 +1783,208 @@
   {:padding "33px 0"})
 
 
+(declare error-boundary)
+
+(defn locate-hint
+  "Best-effort human locator for a malformed feature, built only from fields that
+   actually point at a place in the builder — which class/subclass or homebrew
+   source it came from, and the level it's gained. Never its :name (usually the
+   missing part), and never its :page: the page is a physical-rulebook reference,
+   not a place to fix anything in the app. Returns nil when there's nothing
+   builder-locating to go on (the raw data dump still shows the page etc.)."
+  [{:keys [class-key source level]}]
+  (let [where (cond
+                (string? source) (str "the “" source "” source")
+                source           (str "the “" (common/kw-to-name source) "” source")
+                class-key        (str "your " (s/capitalize (common/kw-to-name class-key)))
+                :else            nil)
+        bits (cond-> []
+               where (conj (str "from " where))
+               level (conj (str "gained at level " level)))]
+    (when (seq bits) (s/join ", " bits))))
+
+(defn guard-fallback
+  "Inline fallback for a single item that threw while rendering: say where it
+   likely came from (so the user can find and fix it in the builder) and dump its
+   raw data so the exact malformed value is visible. No per-bug detector required;
+   works for whatever was being rendered."
+  [data _error]
+  (let [hint (try (locate-hint data) (catch :default _ nil))]
+    [:div.m-t-10.p-5.f-s-12
+     {:style {:border "1px dashed #e9a227" :border-radius "4px"}}
+     [:div.f-w-b "⚠ A feature here couldn’t be displayed"]
+     (when hint [:div.m-t-2 (str "Likely " hint " — open it in the builder to fix.")])
+     [:pre.wsp-prw.f-s-11.m-t-5 (pr-str data)]]))
+
+(defn render-guard
+  "Wrap one piece of UI so a render exception is contained to just this item
+   (showing its raw data via guard-fallback) instead of blanking the whole page.
+   General — catches any error type, not a specific known failure mode."
+  [data child]
+  [error-boundary
+   (fn [error _stack _retry] [guard-fallback data error])
+   child])
+
+(defn- without-nth
+  "items with index i removed (nil-safe, unlike keep-indexed)."
+  [items i]
+  (into (subvec items 0 i) (subvec items (inc i))))
+
+(defn isolate-culprit
+  "Fault isolation by re-execution — the active counterpart to render-guard.
+   `render-coll` renders/processes a whole collection and may throw; `items` is
+   that collection. Return the item(s) NECESSARY for the failure: an item is a
+   culprit if removing it makes render-coll stop throwing. Catches AGGREGATE
+   failures (e.g. a sort over a nil key) that a per-item guard never sees — and
+   pinpoints the culprit even when the failure only manifests in combination
+   (a nil sort key never throws alone, but removing the item fixes the whole list,
+   so leave-one-out finds it where 'does this item alone fail?' cannot).
+
+   Returns nil if render-coll doesn't throw. Honest limit: with two INDEPENDENT
+   faulty items (each breaks things by itself), removing one still throws, so
+   neither looks necessary — we then fall back to the smallest failing subset
+   found by bisection rather than claim a single culprit."
+  [render-coll items]
+  (letfn [(throws? [coll]
+            (try (doall (render-coll coll)) false (catch :default _ true)))
+          (self-bad [coll]
+            ;; items that still break when paired with a copy of themselves — i.e.
+            ;; that individually carry the bad value, distinct from an innocent
+            ;; neighbour only implicated because the failure needs ≥2 elements.
+            (filterv #(throws? [% %]) coll))
+          (bisect [its]
+            (if (<= (count its) 1)
+              its
+              (let [mid (quot (count its) 2)
+                    l (subvec its 0 mid) r (subvec its mid)]
+                (cond (throws? l) (recur l)
+                      (throws? r) (recur r)
+                      :else its))))]
+    (let [items (vec items)]
+      (when (throws? items)
+        (let [necessary (mapv items (filterv #(not (throws? (without-nth items %)))
+                                             (range (count items))))]
+          (cond
+            (= 1 (count necessary)) necessary
+            ;; >1 "necessary" is the comparison-failure trap: removing ANY of a
+            ;; small set drops below the ≥2 elements the comparator needs, so each
+            ;; looks necessary. Keep only the ones that break paired with themselves.
+            (seq necessary) (let [sb (self-bad necessary)]
+                              (if (seq sb) sb necessary))
+            ;; nothing individually necessary (independent multi-fault): the items
+            ;; that break self-paired, else bisect to a smallest failing subset.
+            :else (let [sb (self-bad items)]
+                    (if (seq sb) sb (bisect items)))))))))
+
+(defn guarded-feature-list
+  "Render `items` via `render-coll`. If the whole render throws, LEAD with the
+   problem — surface the item(s) the isolator traced the failure to, with where to
+   fix them — then render everything that DID work below. This is the auditing
+   version of render-guard: it handles failures in the collection-level logic, not
+   just per-item render throws."
+  [render-coll items]
+  ;; Render once: the realized result is reused on the happy path, so the sort and
+  ;; hiccup build don't run twice on every render — only the error path pays extra.
+  (let [rendered (try (doall (render-coll items)) (catch :default _ ::failed))]
+    (if-not (= rendered ::failed)
+      (into [:<>] rendered)
+      (let [culprits (isolate-culprit render-coll items)
+            culprit? (set culprits)
+            survivors (remove culprit? items)]
+        [:div
+         ;; the problem, first and prominent — that's the thing the user must act on
+         [:div.p-10.m-b-10.f-s-14
+          {:style {:border "1px solid #e9a227" :border-radius "5px"
+                   :background "rgba(233,162,39,0.12)"}}
+          [:div.f-w-b.f-s-16
+           (if (= 1 (count culprits))
+             "⚠ A feature in this section couldn’t be displayed"
+             (str "⚠ " (count culprits) " features in this section couldn’t be displayed"))]
+          (doall
+           (map-indexed
+            (fn [i c]
+              (let [hint (try (locate-hint c) (catch :default _ nil))]
+                ^{:key i}
+                [:div.m-t-5
+                 (when hint [:div.f-w-600 (str "Likely " hint " — open it in the builder to fix.")])
+                 [:pre.wsp-prw.f-s-11.m-t-2 {:style {:user-select "text"}} (pr-str c)]]))
+            culprits))]
+         ;; everything that rendered fine, below
+         (when (seq survivors) (render-coll survivors))]))))
+
+(defn- vec-remove [v i]
+  (vec (concat (subvec v 0 i) (subvec v (inc i)))))
+
+(defn prune-sites
+  "Every removable selection site within the ::entity/options map at `path` (inside
+   the root options). Each: {:depth :sel :choice :remove}, where :remove takes the
+   ROOT options and returns it with this site pruned. Recurses into nested
+   ::entity/options so deeper (more specific) selections are also enumerated."
+  [opts-map path]
+  (when (map? opts-map)
+    (mapcat
+     (fn [[sk entry]]
+       (cond
+         (map? entry)
+         (cons {:depth (count path) :sel sk :choice (::entity/key entry)
+                :remove #(update-in % path dissoc sk)}
+               (prune-sites (::entity/options entry) (conj path sk ::entity/options)))
+         (vector? entry)
+         (cons {:depth (count path) :sel sk :choice nil
+                :remove #(update-in % path dissoc sk)}
+               (mapcat
+                (fn [i el]
+                  (cons {:depth (inc (count path)) :sel sk :choice (::entity/key el)
+                         :remove #(update-in % (conj path sk) vec-remove i)}
+                        (prune-sites (::entity/options el) (conj path sk i ::entity/options))))
+                (range) entry))
+         :else nil))
+     opts-map)))
+
+(defn isolate-culprit-selection
+  "Selection-level fault isolation by re-execution. Prune each selection from the
+   character's ::entity/options, rebuild with the pure entity/build, and re-test
+   with `fails?` (a predicate on a freshly-built character). Return the DEEPEST
+   selection whose removal clears the failure — the builder choice to re-pick —
+   as the prune-site map, or nil if none isolates it. Only runs on the error path."
+  [character template fails?]
+  (let [opts0 (::entity/options character)
+        build-fails? (fn [opts]
+                       (try (fails? (entity/build (assoc character ::entity/options opts) template))
+                            (catch :default _ true)))]
+    (when (build-fails? opts0)
+      (->> (prune-sites opts0 [])
+           (filter #(not (build-fails? ((:remove %) opts0))))
+           (sort-by :depth)
+           last))))
+
+(defn- title-case [s]
+  (when s (->> (s/split (str s) #"\s+") (map s/capitalize) (s/join " "))))
+
+(defn culprit-selection-label
+  "Human breadcrumb for the isolated selection: the class for context plus the
+   selection and the chosen option — built only from real keys on the tree."
+  [opts0 {:keys [sel choice]}]
+  (let [class-nm (some-> (first (:class opts0)) ::entity/key common/kw-to-name title-case)
+        sel-nm (when (keyword? sel) (title-case (common/kw-to-name sel)))
+        choice-nm (when (keyword? choice) (title-case (common/kw-to-name choice)))]
+    (->> [(when class-nm (str "your " class-nm))
+          (when (or sel-nm choice-nm)
+            (str sel-nm (when (and sel-nm choice-nm) ": ") choice-nm))]
+         (remove nil?)
+         (s/join " → "))))
+
+(defn features-section-fails?
+  "Re-test for the Features section on a freshly-built character: the same name
+   sort the section runs — throws iff a feature still has a nil/blank name."
+  [built]
+  (try
+    (doall (common/aloof-sort-by :name
+                                 (concat (char/traits built) (char/actions built)
+                                         (char/bonus-actions built) (char/reactions built))))
+    false
+    (catch :default _ true)))
+
 (defn display-section [title icon-name value & [list? buttons]]
   [:div.m-t-20
    [:div.flex.justify-cont-s-b
@@ -2379,20 +2581,32 @@
 
 (defn actions-section [id title icon-name actions]
   (when (seq actions)
-    (display-section
-      title
-      icon-name
-      [:div.f-s-14.l-h-19
-       (doall
-         (map
-           (fn [{{:keys [units amount]} :frequency nm :name :as action}]
-             ^{:key action}
-             [:p.m-t-10
-              [:span.f-w-600.i nm]
-              [:span.f-w-n.m-l-10.wsp-prw (common/sentensize (disp/action-description action))]
-              (when (and amount units)
-                (actions-indicators id nm units amount))])
-           (common/aloof-sort-by :name actions)))])))
+    (let [render-coll
+          ;; render the whole collection (sort + per-item). The aloof-sort-by is
+          ;; eager, so if a malformed item breaks the sort this throws when called
+          ;; — which is exactly what guarded-feature-list re-executes to isolate.
+          (fn [coll]
+            (doall
+              (map
+                (fn [{{:keys [units amount]} :frequency :as action}]
+                  ;; show (and key/sort by) the safe display name: an obvious
+                  ;; "[Unnamed feature]" placeholder instead of a blank when missing.
+                  (let [nm (common/feature-name action)]
+                    ^{:key action}
+                    [render-guard action
+                     [:p.m-t-10
+                      [:span.f-w-600.i nm]
+                      [:span.f-w-n.m-l-10.wsp-prw (common/sentensize (disp/action-description action))]
+                      (when (and amount units)
+                        (actions-indicators id nm units amount))]]))
+                (common/aloof-sort-by common/feature-name coll))))]
+      (display-section
+        title
+        icon-name
+        [:div.f-s-14.l-h-19
+         ;; happy path: identical output; on a section-level throw, isolate the
+         ;; real offending item by re-execution and surface it — no stack, no guess.
+         [guarded-feature-list render-coll actions]]))))
 
 (defn prof-name [prof-map prof-kw]
   (or (-> prof-kw prof-map :name) (common/kw-to-name prof-kw)))
@@ -3567,6 +3781,222 @@
      [:div
       (options-display (::entity/options character))]]))
 
+(defn blank-feature-name?
+  "True when a feature/action name is missing or whitespace-only — the data
+   shape that most often chokes the character display. Public so it can be
+   unit-tested directly."
+  [n]
+  (or (nil? n)
+      (and (string? n) (s/blank? n))))
+
+(defn suspected-broken-features
+  "Best-effort diagnosis for the recovery panel. The character-section crash is
+   almost always a feature/action/reaction whose definition is missing a :name
+   (frequently imported/homebrew content). Return short descriptions of any such
+   items so we can tell the user exactly what to look for and fix, instead of
+   leaving them to guess. Safe to call even when nothing is wrong (returns [])."
+  [id]
+  (->> (concat @(subscribe [::char/traits id])
+               @(subscribe [::char/actions id])
+               @(subscribe [::char/bonus-actions id])
+               @(subscribe [::char/reactions id]))
+       (filter #(blank-feature-name? (:name %)))
+       (map (fn [{:keys [summary description page]}]
+              (let [d (or summary description "(no description available)")
+                    d (if (> (count d) 160) (str (subs d 0 160) "…") d)]
+                (if page (str d " (book p." page ")") d))))
+       distinct
+       vec))
+
+(defn feature-render-error
+  "Recovery panel shown in place of a character section that failed to render.
+   General fail-soft: we do NOT try to guess the cause — by design this catches
+   failures we did not anticipate and cannot name. What we CAN always tell the
+   user is which section broke, that their data is safe, and how to recover
+   (try again / reload / open it in the builder to locate it). The exact error
+   is one click away for a bug report. The specific malformed item, when a single
+   item is at fault, is surfaced in place by the per-item render-guard / the
+   bisection isolator (see isolate-culprit)."
+  [_section _id _error _stack _retry]
+  (let [show-details? (r/atom false)
+        copied? (r/atom false)
+        culprit-cache (r/atom ::unset)]      ; isolation is expensive — run it once
+    (fn [section id error stack retry]
+      (let [character @(subscribe [::char/character id])   ; nil id resolves to the active/builder character
+            section (when (and (string? section) (not (s/blank? section))) section)
+            report (str (or (some-> error .-stack) (str error))
+                        (when stack (str "\n\nComponent stack:" stack)))
+            ;; trace the failure to the builder selection behind it (Features only
+            ;; for now — its re-test is the name sort). Cached: many rebuilds.
+            culprit (if (not= ::unset @culprit-cache)
+                      @culprit-cache
+                      (reset! culprit-cache
+                              (when (and character (= section "Features"))
+                                (try
+                                  (let [template @(subscribe [::char/built-template id])]
+                                    (isolate-culprit-selection character template features-section-fails?))
+                                  (catch :default _ nil)))))
+            culprit-label (when culprit
+                            (culprit-selection-label (::entity/options character) culprit))]
+        [:div.p-20.f-s-14
+         [:div.f-w-b.f-s-18.m-b-10
+          (if section
+            (str "The " section " section couldn’t be displayed")
+            "This section couldn’t be displayed")]
+         (when (and culprit-label (not (s/blank? culprit-label)))
+           [:div.m-b-15.p-10.l-h-19
+            {:style {:border "1px solid #e9a227" :border-radius "5px"
+                     :background "rgba(233,162,39,0.12)"}}
+            [:div.f-w-b "We traced it to one choice:"]
+            [:div.m-t-5.f-w-600 culprit-label]
+            [:div.m-t-5 "Open the builder and re-pick that option."]])
+         [:div.m-b-15.l-h-19
+          "Something in this character’s data stopped "
+          (if section (str "the " section " section") "this section")
+          " from loading. This is a display error — it didn’t change or delete your "
+          "character. The fix is in the builder: open it and re-select the option "
+          "behind this section. If the data looks fine, this may be a glitch — reload the page."]
+         [:div.flex.flex-wrap.align-items-c
+          ;; the editor is the only thing that actually fixes a data problem, so it
+          ;; leads. Reload is secondary (only helps a transient glitch).
+          (when character
+            [:button.form-button.m-r-10.m-b-5
+             {:on-click #(dispatch [:edit-character character])}
+             "Edit this character"])
+          [:button.form-button.m-b-5
+           {:on-click #(.reload js/window.location)}
+           "Reload page"]]
+         [:div.m-t-10
+          [:span.orange.underline.pointer
+           {:on-click #(swap! show-details? not)}
+           (if @show-details? "Hide technical details" "Show technical details")]
+          (when @show-details?
+            [:div
+             [:div.flex.align-items-c.m-t-5
+              [:span.f-s-12.m-r-10 "Include this when reporting the problem:"]
+              [:button.form-button.f-s-11
+               {:on-click (fn []
+                            (some-> js/navigator .-clipboard (.writeText report))
+                            (reset! copied? true))}
+               (if @copied? "Copied!" "Copy")]]
+             ;; selectable + copy-button so the user can actually grab it
+             [:pre.f-s-12.m-t-5.wsp-prw {:style {:user-select "text"}} report]])]]))))
+
+(defn error-boundary
+  "React error boundary. If a child throws while rendering, render
+   (fallback error retry) instead of letting the exception unmount the whole app
+   (the black screen). Give the boundary a :key that changes with its content
+   (e.g. the selected tab) so navigating away clears the error automatically.
+
+   Recovery is driven by React's static getDerivedStateFromError, which is the
+   only React-18 hook that re-renders the boundary to show a fallback (a
+   setState/atom reset in componentDidCatch alone does NOT). component-did-catch
+   runs in the commit phase and is where React hands us the component stack — the
+   one generically-available 'where' for an error we can't otherwise diagnose — so
+   we both log it and stash it in state for the fallback to surface.
+
+   The fallback is called as (fallback error component-stack retry)."
+  [_fallback _child]
+  (r/create-class
+   {:display-name "error-boundary"
+    :constructor (fn [this _props]
+                   (set! (.-state this) #js {:error nil :componentStack nil}))
+    :get-derived-state-from-error (fn [error] #js {:error error})
+    :component-did-catch (fn [this e info]
+                           (let [stack (some-> info .-componentStack)]
+                             (js/console.error "[character render error]" e stack)
+                             ;; Stash the component stack so the recovery panel can show
+                             ;; *which* component threw — the only location info we can
+                             ;; offer for a failure we didn't anticipate.
+                             (.setState this #js {:componentStack stack})))
+    :reagent-render
+    (fn [fallback child]
+      (let [this (r/current-component)]
+        (if-let [e (.. this -state -error)]
+          (fallback e
+                    (.. this -state -componentStack)
+                    #(.setState this #js {:error nil :componentStack nil}))
+          child)))}))
+
+(defn app-error-fallback
+  "Top-level catch-all shown when ANY page throws below the app-root boundary —
+   the guarantee that the app never black-screens (goal #1). Generic by design (it
+   can be any page): say something broke, reassure the data is safe, offer recovery,
+   and expose the error for a report. Finer boundaries below this one give better,
+   more specific messages where they apply; this is the last line of defense."
+  [_error _stack _retry]
+  (let [show? (r/atom false)
+        copied? (r/atom false)]
+    (fn [error stack retry]
+      (let [report (str (or (some-> error .-stack) (str error))
+                        (when stack (str "\n\nComponent stack:" stack)))]
+        [:div.p-20.f-s-14.main-text-color
+         [:div.f-w-b.f-s-24.m-b-10 "Something went wrong on this page"]
+         [:div.m-b-15.l-h-19
+          "This page hit an unexpected error and couldn’t finish loading. Your saved "
+          "data wasn’t affected. Head back to your characters, or reload to try again — "
+          "if it keeps happening, copy the details below and send them to us."]
+         [:div.flex.flex-wrap.align-items-c
+          [:button.form-button.m-r-10.m-b-5
+           {:on-click #(set! (.-href js/window.location) "/pages/dnd/5e/characters")}
+           "Go to my characters"]
+          [:button.form-button.m-b-5 {:on-click #(.reload js/window.location)} "Reload page"]]
+         [:div.m-t-10
+          [:span.orange.underline.pointer
+           {:on-click #(swap! show? not)}
+           (if @show? "Hide details" "Show details")]
+          (when @show?
+            [:div
+             [:button.form-button.f-s-11.m-t-5
+              {:on-click (fn []
+                           (some-> js/navigator .-clipboard (.writeText report))
+                           (reset! copied? true))}
+              (if @copied? "Copied!" "Copy")]
+             [:pre.f-s-12.m-t-5.wsp-prw {:style {:user-select "text"}} report]])]]))))
+
+(defn has-nameless-feature?
+  "Does the built character still carry a feature/action/reaction with no usable
+   name? Used as the re-test for selection-isolation on the proactive banner."
+  [built]
+  (boolean
+   (some #(blank-feature-name? (:name %))
+         (concat (char/traits built) (char/actions built)
+                 (char/bonus-actions built) (char/reactions built)))))
+
+(defn character-health-warning
+  "Proactive banner shown when the character has a feature missing its name (which
+   can blank a section). Instead of dumping the feature's rules text, it traces the
+   problem to the builder selection behind it (re-execution over the options tree)
+   so the user knows exactly which choice to re-pick. Cached — isolation rebuilds
+   the character many times. Renders nothing for healthy characters."
+  [_id]
+  (let [culprit-cache (r/atom ::unset)]
+    (fn [id]
+      (when (seq (try (suspected-broken-features id) (catch :default _ nil)))
+        (let [character @(subscribe [::char/character id])
+              culprit (if (not= ::unset @culprit-cache)
+                        @culprit-cache
+                        (reset! culprit-cache
+                                (when character
+                                  (try
+                                    (let [template @(subscribe [::char/built-template id])]
+                                      (isolate-culprit-selection character template has-nameless-feature?))
+                                    (catch :default _ nil)))))
+              label (when culprit (culprit-selection-label (::entity/options character) culprit))]
+          [:div.p-10.m-b-10.f-s-14.l-h-19
+           {:style {:border "1px solid #e9a227"
+                    :border-radius "5px"
+                    :background "rgba(233,162,39,0.12)"}}
+           [:div.f-w-b.m-b-5 "⚠ A feature on this character is missing its name"]
+           (if (and label (not (s/blank? label)))
+             [:div.m-b-5 "We traced it to this choice: "
+              [:span.f-w-600 label] ". Re-pick it in the builder so the feature has a name."]
+             [:div.m-b-5 "Open the character in the builder and re-select the option that grants it so it has a proper name."])
+           (when character
+             [:button.form-button.m-t-5
+              {:on-click #(dispatch [:edit-character character])}
+              "Open in the builder"])])))))
+
 (defn character-display []
   (let [show-selections? (r/atom false)]
     (fn [id show-summary? num-columns]
@@ -3579,6 +4009,7 @@
                       "summary"))]
         [:div.w-100-p
          [:div
+          [character-health-warning id]
           (when show-summary?
             [:div.f-s-24.f-w-600.m-b-16.m-l-20.text-shadow.flex
              [character-summary id true true]])
@@ -3603,7 +4034,10 @@
                (if two-columns?
                  (rest details-tabs)
                  details-tabs)))]
-            [(-> tab details-tabs :view) num-columns id]]]
+            ^{:key tab}
+            [error-boundary
+             (fn [error stack retry] [feature-render-error (s/capitalize tab) id error stack retry])
+             [(-> tab details-tabs :view) num-columns id]]]]
           [:div.p-10
            [:span.orange.underline.pointer
             {:on-click #(swap! show-selections? not)}
@@ -3670,7 +4104,11 @@
                      print-prepared-spells?
                      print-large-abilities?
                      print-character-sheet-style?
-                     print-spell-card-dc-mod?]
+                     print-spell-card-dc-mod?
+                     print-card-back-logo?
+                     card-back-logo-faded?
+                     print-bw?
+                     bw-faded?]
   #(let [export-fn (export-pdf built-char
                                id
                                plugin-data
@@ -3679,7 +4117,11 @@
                                 :print-prepared-spells? print-prepared-spells?
                                 :print-large-abilities? print-large-abilities?
                                 :print-character-sheet-style? print-character-sheet-style?
-                                :print-spell-card-dc-mod? print-spell-card-dc-mod?})]
+                                :print-spell-card-dc-mod? print-spell-card-dc-mod?
+                                :print-card-back-logo? print-card-back-logo?
+                                :card-back-logo-faded? card-back-logo-faded?
+                                :print-bw? print-bw?
+                                :bw-faded? bw-faded?})]
      (export-fn)
      (dispatch [::char/hide-options])))
 
@@ -3711,6 +4153,10 @@
         print-large-abilities? @(subscribe [::char/print-large-abilities?])
         print-character-sheet-style? @(subscribe [::char/print-character-sheet-style?])
         print-spell-card-dc-mod? @(subscribe [::char/print-spell-card-dc-mod?])
+        print-card-back-logo? @(subscribe [::char/print-card-back-logo?])
+        card-back-logo-faded? @(subscribe [::char/card-back-logo-faded?])
+        print-bw? @(subscribe [::char/print-bw?])
+        bw-faded? @(subscribe [::char/bw-faded?])
         plugin-data {:spells-map @(subscribe [::spells/spells-map])
                      :plugin-spells-map @(subscribe [::spells/plugin-spells-map])
                      :language-map @(subscribe [::langs/language-map])
@@ -3772,6 +4218,42 @@
            [labeled-checkbox
             "Prepared"
             print-prepared-spells?]]]])
+      ;; Appearance group — cosmetic/output options, set apart from the data
+      ;; options above (layout B). Only meaningful when spell cards are printed.
+      (when print-spell-cards?
+        [:div.m-b-10
+         [:div.m-b-5 [:span.f-w-b "Appearance"]]
+         [:div.flex
+          [:div
+           {:on-click (make-event-handler ::char/toggle-print-bw)}
+           [labeled-checkbox
+            "Printer-friendly (black & white)"
+            print-bw?]]]
+         ;; Under B&W: default is solid-black icons with white-halo labels;
+         ;; opt into faded grayscale icons for a softer look.
+         (when print-bw?
+           [:div.m-l-20
+            [:div.flex
+             [:div
+              {:on-click (make-event-handler ::char/toggle-bw-faded)}
+              [labeled-checkbox
+               "Faded grayscale icons (else solid black)"
+               bw-faded?]]]])
+         [:div.flex
+          [:div
+           {:on-click (make-event-handler ::char/toggle-print-card-back-logo)}
+           [labeled-checkbox
+            "Print logo on card backs"
+            print-card-back-logo?]]]
+         ;; Treatment only matters when the logo is on AND B&W isn't forcing black.
+         (when (and print-card-back-logo? (not print-bw?))
+           [:div.m-l-20
+            [:div.flex
+             [:div
+              {:on-click (make-event-handler ::char/toggle-card-back-logo-faded)}
+              [labeled-checkbox
+               "Faded color (else solid black)"
+               card-back-logo-faded?]]]])])
       [:button.form-button.p-10.m-l-5
        {:style (print-button-style print-button-enabled)
         :on-click (export-pdf-handler built-char
@@ -3782,7 +4264,11 @@
                                       print-prepared-spells?
                                       print-large-abilities?
                                       print-character-sheet-style?
-                                      print-spell-card-dc-mod?)}
+                                      print-spell-card-dc-mod?
+                                      print-card-back-logo?
+                                      card-back-logo-faded?
+                                      print-bw?
+                                      bw-faded?)}
        "Create PDF"]
       [:div.f-s-20.f-w-b.m-b-10.m-t-10 "Other PDFs"]
       [:a.orange {:href "/dnld/5eActionsReferencePage.pdf" :target "_blank"} "5e Actions Reference"]]
@@ -3807,10 +4293,115 @@
    {}
    vals))
 
+(defn character-load-recovery
+  "Shown in place of the character sheet when the character's server data could
+   not be read even after self-heal. Never a blank sheet, never a dead-end: the
+   user's data is safe, and they can delete this character (no build required —
+   :delete-character works from the id alone) or return to their list. Also
+   offers a copyable diagnostic report the user can send to support themselves,
+   which works even when no support address / auto-send is configured."
+  [_id]
+  (let [copied? (r/atom false)]
+    (fn [id]
+      (let [{:keys [error raw]} @(subscribe [::char/character-load-error-info id])
+            report (str "OrcPub — character could not be loaded\n"
+                        "Character ID: " id "\n"
+                        (when error (str "Error: " error "\n"))
+                        "\n--- raw character data (for support) ---\n"
+                        raw)]
+        [content-page
+         "Character"
+         []
+         [:div.p-20.main-text-color
+          [:div.f-w-b.f-s-24.m-b-10 "This character couldn’t be loaded"]
+          [:div.m-b-15.l-h-19
+           "This character’s data appears to be corrupted and couldn’t be read. "
+           "Your saved data is safe — you can delete this character, or head back to your characters."]
+          [:div.flex.flex-wrap.m-b-15
+           [:button.form-button.m-r-10.m-b-5
+            {:on-click #(do (dispatch [:delete-character id])
+                            (dispatch [:route routes/dnd-e5-char-list-page-route]))}
+            "Delete this character"]
+           [:button.form-button.m-b-5
+            {:on-click #(dispatch [:route routes/dnd-e5-char-list-page-route])}
+            "My characters"]]
+          ;; Auto-send: only when a support address is configured AND the user is
+          ;; signed in (so we have an account email to cc). Otherwise the copyable
+          ;; report below is the fallback.
+          (when (and (seq branding/support-email) @(subscribe [:username]))
+            (let [status @(subscribe [::char/character-report-status id])]
+              [:div.m-b-15
+               [:button.form-button.m-b-5
+                {:disabled (= status :sending)
+                 :on-click #(dispatch [:report-character-problem id error raw])}
+                (case status
+                  :sending "Sending…"
+                  :sent    "✓ Report sent — thank you"
+                  :failed  "Couldn’t send automatically — copy the report below"
+                  "Email this report to support")]]))
+          [:div.m-t-10
+           [:div.m-b-5.f-s-14 "Or copy this report and send it to support yourself:"]
+           [:button.form-button.f-s-12.m-b-5
+            {:on-click (fn []
+                         (some-> js/navigator .-clipboard (.writeText report))
+                         (reset! copied? true))}
+            (if @copied? "Copied!" "Copy report")]
+           [:pre.f-s-12.m-t-5.wsp-prw
+            {:style {:user-select "text" :max-height "260px" :overflow "auto"
+                     :background "rgba(0,0,0,0.25)" :padding "8px" :border-radius "3px"}}
+            report]]]]))))
+
+(defn shared-content-banner
+  "Shown when viewing a character whose homebrew arrived embedded in the share
+   link. The content is loaded view-only (:shared-plugins, never persisted); this
+   offers to Keep it in the library, and flags any entries that collide by name
+   with the viewer's own content (the shared version wins on this sheet, their
+   copy is untouched)."
+  [id]
+  (when-let [{:keys [count item-count collisions]} @(subscribe [::e5/shared-content-info])]
+    (let [char-name @(subscribe [::char/character-name id])
+          n-coll (clojure.core/count collisions)
+          item-count (or item-count 0)
+          parts (cond-> []
+                  (pos? count)      (conj (str count " homebrew piece" (when (not= 1 count) "s")))
+                  (pos? item-count) (conj (str item-count " custom item" (when (not= 1 item-count) "s"))))]
+      [:div.m-b-10.flex.align-items-c.justify-cont-s-b.flex-wrap
+       {:style {:padding "12px 16px"
+                :background "rgba(217,165,32,0.09)"
+                :border-left "4px solid #d9a520"
+                :border-radius "6px"
+                :gap "12px"}}
+       [:div {:style {:min-width "260px" :flex "1 1 300px"}}
+        [:div.f-w-b.f-s-16
+         [:i.fa.fa-info-circle.m-r-5.orange]
+         (str "Shared with " (s/join " and " parts) ".")]
+        [:div.f-s-12.m-t-5 {:style {:opacity 0.8}}
+         "Loaded for viewing only — not saved to your library."]
+        (when (pos? n-coll)
+          [:div.f-s-12.m-t-5 {:style {:color "#d9a520"}}
+           (str n-coll " differ from same-named content you own — the shared version shows "
+                "here, yours is untouched"
+                (when-let [names (seq (map :name (take 4 collisions)))]
+                  (str " (" (s/join ", " names) (when (> n-coll 4) ", …") ")"))
+                ".")])
+        (when (pos? item-count)
+          [:div.f-s-12.m-t-5 {:style {:opacity 0.8}}
+           "Custom magic items are shown for this view only (keeping items isn't supported yet)."])]
+       [:div.flex.align-items-c {:style {:flex "0 0 auto"}}
+        (when (pos? count)
+          [:button.form-button.m-r-5
+           {:on-click #(dispatch [::e5/keep-shared-content char-name])}
+           "Keep homebrew in my library"])
+        [:button.form-button
+         {:on-click #(dispatch [::e5/dismiss-shared-content])}
+         "Dismiss"]]])))
+
 (defn character-page []
   (let [expanded? (r/atom false)]
     (fn [{:keys [id] :as arg}]
-      (let [id (js/parseInt id)
+      (if @(subscribe [::char/character-load-error? (js/parseInt id)])
+        [character-load-recovery (js/parseInt id)]
+        (let [id (js/parseInt id)
             frame? (= "true" (get-in arg [:query "frame"]))
             {:keys [::entity/owner] :as character} @(subscribe [::char/character id])
             built-template (subs/built-template
@@ -3849,8 +4440,9 @@
                 {:value (str url
                              (when (not (s/ends-with? url "?frame=true"))
                                "?frame=true"))}]]))
+          [shared-content-banner id]
           [character-display id true (if (= :mobile device-type) 1 2)]]
-         :frame? frame?]))))
+         :frame? frame?])))))
 
 (defn monster-page [{:keys [key] :as arg}]
   (let [monster @(subscribe [::monsters/monster (keyword key)])]
@@ -4328,17 +4920,49 @@
     [:div.flex-grow-1
      [item-condition-immunities]]]])
 
+(defn builder-field-cue
+  "Cue class for a required field (or a set of related keys) rendered by a
+   component other than the text inputs — reads the same :builder-field-errors
+   map. Red if any related key is invalid, amber if any is missing."
+  [field-or-keys]
+  (let [errors @(subscribe [:builder-field-errors])
+        ks (if (coll? field-or-keys) field-or-keys [field-or-keys])
+        statuses (keep #(get errors %) ks)]
+    (cond
+      (some #{:invalid} statuses) " builder-field-invalid"
+      (some #{:missing} statuses) " builder-field-unfilled"
+      :else "")))
+
 (defn builder-input-field [title prop item prop-event & [class-names type]]
-  [:div.flex-grow-1
-   {:class class-names
-    :name prop}
-   [input-builder-field
-    [:span.f-w-b title]
-    (prop item)
-    #(dispatch [prop-event prop %])
-    {:class "input h-40"
-     :type type
-     :maxLength (:text branding/field-limits)}]])
+  ;; Flag a required field that failed the last save: amber if it was empty,
+  ;; red if it was filled but rejected (e.g. a name not starting with a letter).
+  ;; Editing the field clears its own save-cue.
+  (let [v (prop item)
+        ;; Live: a name that's present but doesn't start with a letter is wrong
+        ;; the instant it's typed — flag it red immediately, before any save.
+        live-invalid? (and (= prop :name)
+                           (string? v) (not (s/blank? v))
+                           (not (common/starts-with-letter? v)))
+        cue (cond
+              live-invalid? " builder-field-invalid"
+              :else (case (get @(subscribe [:builder-field-errors]) prop)
+                      :missing " builder-field-unfilled"
+                      :invalid " builder-field-invalid"
+                      ""))]
+    [:div.flex-grow-1
+     {:class class-names
+      :name prop}
+     [input-builder-field
+      [:span.f-w-b title]
+      v
+      #(do (dispatch [prop-event prop %])
+           (dispatch [:clear-builder-field-error prop]))
+      {:class (str "input h-40" cue)
+       :type type
+       :maxLength (:text branding/field-limits)}]
+     (when live-invalid?
+       [:div.f-s-12.m-t-2 {:style {:color "#d9534f"}}
+        "Name must start with a letter."])]))
 
 #_(defn item-input-field [title prop item & [class-names]]
   (builder-input-field title prop item ::mi/set-item-name class-names))
@@ -5228,7 +5852,8 @@
     (map (fn [plugin-name]
            {:value plugin-name
             :title plugin-name})
-         (sort-by s/lower-case (keys plugins)))))
+         ;; safe fold: a nil/non-string plugin key sorts as "" instead of crashing
+         (sort-by common/lower-case (keys plugins)))))
 
 ;;; Create a datalist element and load the plugin names
 (defn plugin-datalist [label plugin-val dispatch-event] 
@@ -5243,7 +5868,11 @@
                 :list "plugins-list"
                 :name "plugins-choice"
                 :id "plugins-choice"
-                :class "input h-40"
+                :class (str "input h-40"
+                            (case (get @(subscribe [:builder-field-errors]) :option-pack)
+                              :missing " builder-field-unfilled"
+                              :invalid " builder-field-invalid"
+                              ""))
                 :placeholder "Default Option Source"
                 :value @selected-value
                 :onChange #(do
@@ -5253,6 +5882,7 @@
                              ;    w/ new value to save to app db (can be used elsewhere in app)
                              (reset! selected-value (-> % .-target .-value))
                              (dispatch [dispatch-event :option-pack @selected-value])
+                             (dispatch [:clear-builder-field-error :option-pack])
                              )
                 }]
        [:datalist {:id "plugins-list" :class "width-100-p"}
@@ -6476,9 +7106,12 @@
                  [:span.f-w-b "Name"]
                  name
                  #(dispatch [::selections/set-selection-path-prop [:options i :name] %])
-                 {:class "input h-40"
-                  :style (when (or is-dupe? is-empty?)
-                           {:border "2px solid red"})}]
+                 ;; Shared cue: amber when empty (missing), red when a duplicate
+                 ;; (invalid) — same language as every other builder field.
+                 {:class (str "input h-40"
+                              (cond is-dupe? " builder-field-invalid"
+                                    is-empty? " builder-field-unfilled"
+                                    :else ""))}]
                 (when is-dupe?
                   [:div.red.f-s-12.m-t-2
                    "Duplicate name \u2014 rename to a unique name before saving"])
@@ -6644,7 +7277,8 @@
        monster
        "m-b-5 m-l-5 flex-grow-1"]]
      [:div.flex.w-100-p.flex-wrap
-       [:div.m-l-5.m-b-20
+       [:div.m-l-5.m-b-20.p-5.b-rad-5
+        {:class (builder-field-cue #{:hit-points :die-count})}
         [labeled-dropdown
          "HP Die Count"
          {:items (cons
@@ -6653,8 +7287,12 @@
                    value-to-item
                    (range 1 36)))
           :value (get hit-points :die-count)
-          :on-change #(let [v (js/parseInt %)] (dispatch [::monsters/set-monster-path-prop [:hit-points :die-count] (when (not (js/isNaN v)) v)]))}]]
-       [:div.m-l-5.m-b-20
+          :on-change #(let [v (js/parseInt %)]
+                        (dispatch [::monsters/set-monster-path-prop [:hit-points :die-count] (when (not (js/isNaN v)) v)])
+                        (dispatch [:clear-builder-field-error :die-count])
+                        (dispatch [:clear-builder-field-error :hit-points]))}]]
+       [:div.m-l-5.m-b-20.p-5.b-rad-5
+        {:class (builder-field-cue #{:hit-points :die})}
         [labeled-dropdown
          "HP Die"
          {:items (cons
@@ -6664,7 +7302,9 @@
                    dice/dice-sides))
           :value (get hit-points :die)
           :on-change #(let [v (js/parseInt %)]
-                        (dispatch [::monsters/set-monster-path-prop [:hit-points :die] (when (not (js/isNaN v)) v)]))}]]
+                        (dispatch [::monsters/set-monster-path-prop [:hit-points :die] (when (not (js/isNaN v)) v)])
+                        (dispatch [:clear-builder-field-error :die])
+                        (dispatch [:clear-builder-field-error :hit-points]))}]]
        [:div.m-l-5.m-b-20
         [input-builder-field
          [:span.f-w-b.m-b-5.f-s-16 "HP Modifier"]
@@ -7373,12 +8013,14 @@
          :on-change #(dispatch [::spells/set-spell-prop :description %])}]]]
      [:div.m-b-20
       [:div.f-w-b.m-b-10 "Add This Spell to Which Class Spell Lists?"]
-      [:div.flex.flex-wrap
+      [:div.flex.flex-wrap.p-5.b-rad-5
+       {:class (builder-field-cue :spell-lists)}
        (map
         (fn [{:keys [key name]}]
           ^{:key key}
           [:div.m-r-10.pointer.m-b-10
-           {:on-click #(dispatch [::spells/toggle-spell-list key])}
+           {:on-click #(do (dispatch [::spells/toggle-spell-list key])
+                           (dispatch [:clear-builder-field-error :spell-lists]))}
            [comps/checkbox (get-in spell [:spell-lists key])]
            [:span.m-l-5 name]])
         @(subscribe [::spells/spellcasting-classes]))]]]))
@@ -7756,11 +8398,101 @@
           [my-content-item name plugin])
         plugins)))]])
 
+(defn quarantine-source-repair
+  "Repair UI for ONE source's set-aside ENTRIES. Lists each broken item with
+   editable Name + Option-source fields; 'Fix & Restore' applies the edits, fills
+   any remaining gaps with placeholders, re-keys keyword-trap names, and restores
+   the now-valid entries into the live library (::e5/repair-quarantined-source) —
+   entries that still can't validate stay set aside. Raw-export + discard hatches
+   are always offered."
+  [src-name plugin]
+  (let [entries (vec (for [[ct items] plugin
+                           :when (and (qualified-keyword? ct) (map? items))
+                           [ik item] items]
+                       {:ct ct :ik ik :item item}))
+        edits (r/atom (into {} (mapcat (fn [{:keys [ct ik item]}]
+                                         [[[ct ik :name] (or (:name item) "")]
+                                          [[ct ik :option-pack] (or (:option-pack item) "")]])
+                                       entries)))]
+    (fn [src-name plugin]
+      (let [current @edits]
+        [:div.p-10.m-t-10.bg-lighter.b-rad-5
+         [:div.f-w-b.f-s-18.orange src-name]
+         (if (seq entries)
+           [:div
+            [:div.f-s-12.m-t-5.m-b-5
+             "These entries couldn't load. Just hit Fix & Restore and each gets a "
+             "valid placeholder name — or set your own name and option source first."]
+            (doall
+             (for [{:keys [ct ik]} entries
+                   :let [nk [ct ik :name]
+                         ok [ct ik :option-pack]
+                         nm (get current nk "")]]
+               ^{:key (str ct "/" ik)}
+               [:div.m-t-5.m-b-5
+                [:div.f-s-12.orange (str (name ct) " / " (name ik))]
+                [:div.m-t-5.flex.align-items-c
+                 [:span.f-s-12.m-r-5 {:style {:min-width "90px"}} "Name"]
+                 [:input.input {:type "text" :value nm
+                                :on-change #(swap! edits assoc nk (.. % -target -value))}]
+                 (when-not (common/starts-with-letter? nm)
+                   [:span.m-l-5.f-s-12 {:style {:color "#d9a520"}}
+                    "will be auto-named on restore"])]
+                [:div.m-t-5.flex.align-items-c
+                 [:span.f-s-12.m-r-5 {:style {:min-width "90px"}} "Option source"]
+                 [:input.input {:type "text" :value (get current ok "")
+                                :on-change #(swap! edits assoc ok (.. % -target -value))}]]]))]
+           [:div.f-s-12.m-t-5 "No entries to repair."])
+         [:div.m-t-10
+          (when (seq entries)
+            [:button.form-button.m-r-5
+             {:on-click #(dispatch [::e5/repair-quarantined-source src-name
+                                    (into {} (map (fn [[[ct ik field] v]]
+                                                    [[src-name ct ik field] v])
+                                                  @edits))])}
+             "Fix & Restore"])
+          [:button.form-button.m-r-5
+           {:on-click #(dispatch [::e5/export-quarantined-raw src-name])}
+           "Export raw"]
+          ;; Escape hatch for entries that can't be repaired and won't self-clear
+          ;; (e.g. stale ones from an earlier bad import). Confirms — only copy.
+          [:button.form-button
+           {:on-click #(when (js/confirm
+                             (str "Permanently discard the set-aside entries in \""
+                                  src-name "\"? Export raw first if you might want them."))
+                        (dispatch [::e5/discard-quarantined-source src-name]))}
+           "Discard"]]]))))
+
+(defn quarantine-panel
+  "Surfaces the ENTRIES the loader set aside (grouped by their source). The rest of
+   each source loaded normally; these are preserved, not discarded, so you can fix
+   them back into the library or export the raw data."
+  []
+  (let [quarantined @(subscribe [::e5/quarantined-plugins])
+        n-entries (reduce + 0 (for [[_ plugin] quarantined
+                                    [ct items] plugin
+                                    :when (and (qualified-keyword? ct) (map? items))]
+                                (count items)))]
+    (when (seq quarantined)
+      [:div.p-20.main-text-color.m-b-10.m-l-10.m-r-10.b-rad-5
+       {:style {:border "2px solid #d94b20"}}
+       [:div.f-w-b.f-s-24.m-b-5
+        [:i.fa.fa-exclamation-triangle.m-r-5]
+        (str n-entries " entr" (if (= 1 n-entries) "y" "ies")
+             " couldn't load — needs attention")]
+       [:div.f-s-12
+        "The rest of each source loaded fine. Fix these back in, or export/discard them."]
+       (doall
+        (for [[src-name plugin] quarantined]
+          ^{:key src-name}
+          [quarantine-source-repair src-name plugin]))])))
+
 (defn my-content-page []
   [content-page
    "My Content"
    []
    [:div
+    [quarantine-panel]
     [:div.p-20.bg-lighter.main-text-color.m-b-10.m-l-10.m-r-10.b-rad-5
      [:div.f-w-b.f-s-24.m-b-5 "Import Option Source"]
      [:input {:type "file"
@@ -7923,15 +8655,23 @@
 
 ;; events are set and passed by the individual pages defined below this
 (defn builder-page [item-title reset-event save-event builder & [title]]
-  [content-page
-   (or title (str item-title " Builder"))
-   [{:title (str "New " item-title)
-     :icon "plus"
-     :on-click #(dispatch [reset-event])}
-    {:title "Save to Browser Storage"
-     :icon "save"
-     :on-click #(dispatch [save-event])}]
-   [builder]])
+  ;; Draft event is derived from save-event (events/draft-event-for) and registered
+  ;; from events/builder-drafts, so the Export-draft hatch needs no per-builder wiring.
+  (let [export-draft-event (events/draft-event-for save-event)]
+    [content-page
+     (or title (str item-title " Builder"))
+     [{:title (str "New " item-title)
+       :icon "plus"
+       :on-click #(dispatch [reset-event])}
+      {:title "Save to Browser Storage"
+       :icon "save"
+       :on-click #(dispatch [save-event])}
+      ;; Escape hatch: export the in-progress builder-item as a draft .orcbrew with
+      ;; no validation, so imperfect WIP is never trapped.
+      {:title "Export draft"
+       :icon "download"
+       :on-click #(dispatch [export-draft-event])}]
+     [builder]]))
 
 (defn combat-tracker-page []
   [content-page

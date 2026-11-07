@@ -18,7 +18,7 @@ Scans imported content for duplicate keys before import.
 
 **External** - Between existing and imported content:
 ```
-Already loaded: :artificer from "Player's Handbook"
+Already loaded: :artificer from "Core Rulebook"
 Importing:      :artificer from "Homebrew Classes"
 → CONFLICT: Same key, different sources
 ```
@@ -116,7 +116,7 @@ Checks against all existing content (loaded + importing) to guarantee uniqueness
 
 ### Single Conflict
 
-Importing `:artificer` when PHB `:artificer` already exists:
+Importing `:artificer` when the core `:artificer` already exists:
 
 ```
 ┌─ Conflict Resolution ─────────────────────────┐
@@ -124,7 +124,7 @@ Importing `:artificer` when PHB `:artificer` already exists:
 │                                                │
 │ Classes:                                       │
 │   :artificer                                   │
-│     Existing: "Player's Handbook"              │
+│     Existing: "Core Rulebook"                  │
 │     Importing: "Homebrew Classes"              │
 │                                                │
 │   ○ Rename to: :artificer-2                   │
